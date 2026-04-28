@@ -47,7 +47,7 @@ specs/
 ### Phase 0 — Repo Bootstrap
 
 **Spec:** [`specs/repo-bootstrap.md`](./specs/repo-bootstrap.md)
-**Status:** ready to start
+**Status:** ✅ complete (03f0f78)
 **Blocks:** everything
 
 Sets up the Go workspace, directory layout, Makefile, and `copilot-setup-steps.yml`. Must land on `main` before other work begins, since it defines where things live.
@@ -57,7 +57,7 @@ Sets up the Go workspace, directory layout, Makefile, and `copilot-setup-steps.y
 ### Phase 1 — Interface Contracts
 
 **Specs:** [`specs/contracts/`](./specs/contracts/)
-**Status:** ready to start (after Phase 0)
+**Status:** ✅ complete
 **Blocks:** all Phase 2 work
 
 These specs define the HTTP APIs and Go interfaces that components will implement or consume. They produce committed Markdown and Go interface stubs — no working implementations yet. They must be reviewed and merged before parallel Phase 2 work begins.
@@ -75,7 +75,7 @@ Phase 1 can be worked in parallel with Phase 0 since the contracts don't require
 
 ### Phase 2 — Parallel Implementation
 
-**Status:** blocked on Phase 0 + Phase 1
+**Status:** 🟡 ready to start
 **All six streams are independent once contracts are merged.**
 
 | Spec | Repo | What it builds |
