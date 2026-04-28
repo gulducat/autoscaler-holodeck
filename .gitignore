@@ -1,0 +1,8 @@
+# Go build outputs
+holodeck/holodeck
+observer/observer
+plugins/holodeck-apm/holodeck-apm
+plugins/nodesim-target/nodesim-target
+
+# Go workspace sum file (generated)
+go.work.sum

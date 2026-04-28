@@ -1,0 +1,24 @@
+steps:
+  - name: Install Go
+    run: |
+      GO_VERSION="1.26.2"
+      curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tar.gz
+      sudo rm -rf /usr/local/go
+      sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+      echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+
+  - name: Install golangci-lint
+    run: |
+      curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+        | sh -s -- -b /usr/local/bin
+
+  - name: Install Nomad
+    run: |
+      NOMAD_VERSION=$(curl -fsSL https://api.releases.hashicorp.com/v1/releases/nomad/latest | \
+        python3 -c "import sys,json; print(json.load(sys.stdin)['version'])")
+      curl -fsSL "https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip" \
+        -o /tmp/nomad.zip
+      sudo unzip -o /tmp/nomad.zip -d /usr/local/bin nomad
+
+  - name: Sync Go workspace
+    run: go work sync
