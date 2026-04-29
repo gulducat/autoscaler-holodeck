@@ -16,7 +16,7 @@ This document defines the HTTP API that the extended `nomad-nodesim` service wil
 
 ## Group → Nomad Construct Mapping
 
-A node group maps to a set of Nomad nodes identified by **node pool**. The pool name is set via the `node_pool` field in the group's `node {}` config block — the group name and pool name are independent.
+A node group maps to a set of Nomad nodes identified by **node pool**. The pool name is set via the `node_pool` field in the group's `node {}` config block (or `node` object in the create request) — the group name and pool name are independent.
 
 Node pool was chosen as the discriminator because:
 - Membership is visible natively in the Nomad UI and API
@@ -26,6 +26,78 @@ Node pool was chosen as the discriminator because:
 ---
 
 ## Endpoints
+
+### Create Group
+
+Creates a new named group and optionally starts an initial set of nodes.
+Groups may also be pre-declared in HCL config; this endpoint allows runtime creation.
+
+```
+POST /v1/groups
+```
+
+Request:
+
+```json
+{
+  "name":        "my-group",
+  "start_count": 3,
+  "node": {
+    "node_pool":   "web-nodes",
+    "region":      "global",
+    "datacenter":  "dc1",
+    "node_class":  "",
+    "options":     {},
+    "resources": {
+      "cpu_compute": 4000,
+      "memory_mb":   8000
+    }
+  }
+}
+```
+
+All fields inside `node` are optional; omitted fields inherit from the base `node {}` config.
+`start_count` defaults to 0 if omitted.
+
+Response `201`:
+
+```json
+{
+  "name":          "my-group",
+  "node_pool":     "web-nodes",
+  "desired_count": 3,
+  "current_count": 3,
+  "ready":         true
+}
+```
+
+Response `400` if `name` is missing or `start_count` is negative.
+Response `409` if a group with that name already exists.
+
+```sh
+curl -s -X POST http://nodesim:8082/v1/groups \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"my-group","start_count":3,"node":{"node_pool":"web-nodes"}}'
+```
+
+---
+
+### Delete Group
+
+Shuts down all nodes in the group and removes it. Deletion is synchronous.
+
+```
+DELETE /v1/groups/{name}
+```
+
+Response `204` on success.
+Response `404` if the group does not exist.
+
+```sh
+curl -s -X DELETE http://nodesim:8082/v1/groups/my-group
+```
+
+---
 
 ### Scale Group
 
@@ -127,5 +199,5 @@ curl -s http://nodesim:8082/v1/health
 
 - The API contains no policy logic — it is purely imperative ("make it N").
 - The `nodesim-target` plugin translates autoscaler scaling intent into calls to this API.
-- Groups must be pre-declared in nodesim configuration; they are not created on demand via the API.
+- Groups may be pre-declared in HCL config or created at runtime via `POST /v1/groups`.
 - Node naming is deterministic: `<group_name>-<index>` (e.g. `web-0`, `web-1`).

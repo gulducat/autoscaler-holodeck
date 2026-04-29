@@ -66,7 +66,7 @@ These specs define the HTTP APIs and Go interfaces that components will implemen
 |---|---|---|
 | [`holodeck-http-api.md`](./specs/contracts/holodeck-http-api.md) | holodeck implementor | holodeck-apm plugin |
 | [`observer-http-api.md`](./specs/contracts/observer-http-api.md) | observer implementor | holodeck, holodeck-apm, nodesim-target |
-| [`nodesim-asg-api.md`](./specs/contracts/nodesim-asg-api.md) | nodesim-asg implementor | nodesim-target plugin |
+| [`nodesim-nodegroup-api.md`](./specs/contracts/nodesim-nodegroup-api.md) | nodesim-asg implementor | nodesim-target plugin |
 | [`plugin-interfaces.md`](./specs/contracts/plugin-interfaces.md) | any | holodeck-apm, nodesim-target |
 
 Phase 1 can be worked in parallel with Phase 0 since the contracts don't require code yet — but both must land before Phase 2 starts.
@@ -75,17 +75,17 @@ Phase 1 can be worked in parallel with Phase 0 since the contracts don't require
 
 ### Phase 2 — Parallel Implementation
 
-**Status:** 🟡 ready to start
+**Status:** 🟡 in progress
 **All six streams are independent once contracts are merged.**
 
-| Spec | Repo | What it builds |
-|---|---|---|
-| [`specs/holodeck.md`](./specs/holodeck.md) | this repo | metric physics engine + HTTP API + minimal UI |
-| [`specs/observer.md`](./specs/observer.md) | this repo | event sink, ordering, read-only UI |
-| [`specs/holodeck-apm.md`](./specs/holodeck-apm.md) | this repo | autoscaler APM plugin |
-| [`specs/nodesim-target.md`](./specs/nodesim-target.md) | this repo | autoscaler target plugin for node groups |
-| [`specs/nodesim-asg.md`](./specs/nodesim-asg.md) | `hashicorp/nomad-nodesim` | ASG concept + HTTP API extension |
-| [`specs/nomad-jobs.md`](./specs/nomad-jobs.md) | this repo | Nomad job files to run the full system |
+| Spec | Repo | What it builds | Status |
+|---|---|---|---|
+| [`specs/holodeck.md`](./specs/holodeck.md) | this repo | metric physics engine + HTTP API + minimal UI | ✅ complete |
+| [`specs/observer.md`](./specs/observer.md) | this repo | event sink, ordering, read-only UI | ✅ complete |
+| [`specs/holodeck-apm.md`](./specs/holodeck-apm.md) | this repo | autoscaler APM plugin | 🔲 not started |
+| [`specs/nodesim-target.md`](./specs/nodesim-target.md) | this repo | autoscaler target plugin for node groups | 🔲 not started |
+| [`specs/nodesim-asg.md`](./specs/nodesim-asg.md) | `hashicorp/nomad-nodesim` | node group concept + HTTP API extension | ✅ complete (feat/node-groups, PR pending) |
+| [`specs/nomad-jobs.md`](./specs/nomad-jobs.md) | this repo | Nomad job files to run the full system | 🔲 not started |
 
 ---
 

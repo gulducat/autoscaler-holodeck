@@ -8,7 +8,7 @@ This is **not** a production simulator, Prometheus clone, or performance benchma
 
 **Core idea:**
 
-> Author a simple, explicit “universe,” let the autoscaler react, and observe what actually happens.
+> Author a simple, explicit "universe," let the autoscaler react, and observe what actually happens.
 
 ***
 
@@ -57,8 +57,8 @@ The Holodeck authors *rules*, not dashboards.
 ### 3. Capacity Simulation (nodesim)
 
 *   Implements **logical node groups** (cloud ASG analogue)
-*   Exposes small HTTP API: “ensure group size = N”
-*   Projects groups onto Nomad constructs (dc / pool / meta)
+*   Exposes small HTTP API: "ensure group size = N"; groups can be pre-declared in config or created at runtime
+*   Projects groups onto Nomad node pools
 *   Adds/removes nodes deterministically
 *   Contains **no policy logic**
 
@@ -80,7 +80,7 @@ The Holodeck authors *rules*, not dashboards.
     *   Holodeck world‑authoring events
     *   APM metric observations
     *   Target scaling intent
-*   Listens to Nomad’s event stream for actual outcomes
+*   Listens to Nomad's event stream for actual outcomes
 *   Assigns:
     *   Ingest timestamp (wall clock, authoritative for UI)
     *   Total ordering / sequence

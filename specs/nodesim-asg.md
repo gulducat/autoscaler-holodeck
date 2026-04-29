@@ -113,7 +113,7 @@ Response shapes match [`specs/contracts/nodesim-nodegroup-api.md`](../contracts/
 - Cloud-accurate scaling behavior
 - Multi-region or multi-datacenter groups
 - Health-check-based node replacement
-- On-demand group creation via the API (groups are pre-declared in config)
+- On-demand group creation via the API (groups may be pre-declared in config OR created at runtime)
 
 ## Acceptance Criteria
 
