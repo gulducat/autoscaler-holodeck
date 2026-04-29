@@ -1,6 +1,6 @@
 MODULES := holodeck observer plugins/holodeck-apm plugins/nodesim-target
 
-.PHONY: build test lint tidy clean visual
+.PHONY: build test lint tidy clean visual run stop policy
 
 build: bin/holodeck bin/observer bin/plugins/holodeck-apm bin/plugins/nodesim-target
 	@find bin -type f
@@ -29,6 +29,20 @@ visual:
 
 clean:
 	rm -rf bin/
+
+run: build
+	nomad job run -var="bin_dir=$(CURDIR)/bin" jobs/holodeck.nomad.hcl
+
+stop:
+	nomad job stop -purge holodeck
+
+policy:
+	nomad acl policy apply \
+		-description="Read access for holodeck and observer tasks" \
+		-job=holodeck \
+		-namespace=default \
+		holodeck-tasks \
+		jobs/holodeck-policy.hcl
 
 bin/holodeck:
 bin/observer:
