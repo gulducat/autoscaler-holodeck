@@ -1,8 +1,8 @@
-# Contract: Nodesim ASG HTTP API
+# Contract: Nodesim Node Group HTTP API
 
 **Status:** defined ✅
 
-This document defines the HTTP API that the extended `nomad-nodesim` service will expose for the ASG (auto-scaling group) concept. It is the source of truth for:
+This document defines the HTTP API that the extended `nomad-nodesim` service will expose for the node group concept. It is the source of truth for:
 - What the `nodesim-target` autoscaler plugin calls
 - What the `nodesim-asg` implementor must build
 
@@ -16,12 +16,12 @@ This document defines the HTTP API that the extended `nomad-nodesim` service wil
 
 ## Group → Nomad Construct Mapping
 
-A "group" maps to a set of Nomad nodes identified by **node pool**: the group `name` is the node pool name, and nodes in the group are registered with `NodePool = <name>`.
+A node group maps to a set of Nomad nodes identified by **node pool**. The pool name is set via the `node_pool` field in the group's `node {}` config block — the group name and pool name are independent.
 
-The three candidate discriminators were datacenter, node pool, and node meta. Node pool was chosen because:
+Node pool was chosen as the discriminator because:
 - Membership is visible natively in the Nomad UI and API
 - The autoscaler's existing `node_pool` target config key works without modification
-- It is the closest analogue to a cloud ASG, which maps to a single instance type/pool
+- It is the closest Nomad analogue to a cloud ASG, which maps to a single instance type/pool
 
 ---
 
@@ -29,10 +29,10 @@ The three candidate discriminators were datacenter, node pool, and node meta. No
 
 ### Scale Group
 
-Instructs nodesim to ensure a logical node group contains exactly N nodes.
+Instructs nodesim to ensure a node group contains exactly N nodes. Reconciliation is synchronous — the response reflects the state after reconciliation completes.
 
 ```
-POST /v1/groups/<name>/scale
+POST /v1/groups/{name}/scale
 ```
 
 Request:
@@ -47,11 +47,9 @@ Response `200`:
 {
   "name":          "my-group",
   "desired_count": 5,
-  "current_count": 3
+  "current_count": 5
 }
 ```
-
-`current_count` reflects state at time of request; reconciliation is async.
 
 Response `400` if `count` is negative.
 Response `404` if the group does not exist.
@@ -67,7 +65,7 @@ curl -s -X POST http://nodesim:8082/v1/groups/my-group/scale \
 ### Get Group
 
 ```
-GET /v1/groups/<name>
+GET /v1/groups/{name}
 ```
 
 Response `200`:
@@ -75,14 +73,14 @@ Response `200`:
 ```json
 {
   "name":          "my-group",
-  "node_pool":     "my-group",
+  "node_pool":     "web-nodes",
   "desired_count": 3,
   "current_count": 3,
   "ready":         true
 }
 ```
 
-`ready` is `false` while reconciliation is in progress (`current_count != desired_count`).
+`ready` is `true` when `current_count == desired_count`.
 The `nodesim-target` plugin uses `current_count` for `Status().Count` and `ready` for `Status().Ready`.
 
 Response `404` if the group does not exist.
@@ -129,4 +127,5 @@ curl -s http://nodesim:8082/v1/health
 
 - The API contains no policy logic — it is purely imperative ("make it N").
 - The `nodesim-target` plugin translates autoscaler scaling intent into calls to this API.
-- Groups must be pre-declared in nodesim configuration; they are not created on demand.
+- Groups must be pre-declared in nodesim configuration; they are not created on demand via the API.
+- Node naming is deterministic: `<group_name>-<index>` (e.g. `web-0`, `web-1`).
