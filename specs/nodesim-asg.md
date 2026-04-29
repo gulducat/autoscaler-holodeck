@@ -49,7 +49,7 @@ New `group` labeled HCL block in `internal/config/config.go`:
 
 ```hcl
 group "web" {
-  start_count = 3
+  count = 3
 
   node {
     node_pool = "web-nodes"
@@ -61,7 +61,7 @@ group "web" {
 }
 ```
 
-- `start_count` — initial node count at startup (can be 0)
+- `count` — initial node count at startup (can be 0)
 - `node {}` — optional; merged over the top-level `node {}` block. Supports all existing Node fields: `region`, `datacenter`, `node_pool`, `node_class`, `options`, `resources`
 - Group name is decoupled from `node_pool` — set `node_pool` inside `node {}` explicitly
 
@@ -74,7 +74,7 @@ group "web" {
 `nodegroup/manager.go`:
 - `NodeGroup` — name, desired count, `map[int]*simnode.Node`, mutex
 - `Manager` — map of groups, base config, build info, logger
-- `Manager.InitFromConfig` — pre-create groups from config, start `start_count` nodes each
+- `Manager.InitFromConfig` — pre-create groups from config, start `count` nodes each
 - `Manager.Scale(name, count)` — reconcile: start nodes for new indices, shut down nodes for removed indices
 - `Manager.Get(name)` — state snapshot
 - `Manager.List()` — all groups
@@ -91,7 +91,7 @@ POST /v1/groups/{name}/scale  — body: {"count": N}
 ```
 
 Response shapes match [`specs/contracts/nodesim-nodegroup-api.md`](../contracts/nodesim-nodegroup-api.md) exactly.
-`current_count` reflects state at time of request; reconciliation is synchronous (Scale blocks until done).
+`nodes` reflects state at time of request; reconciliation is synchronous (Scale blocks until done).
 
 ### main.go changes
 
@@ -118,7 +118,7 @@ Response shapes match [`specs/contracts/nodesim-nodegroup-api.md`](../contracts/
 ## Acceptance Criteria
 
 - `GET /v1/health` returns 200
-- A group with `start_count = 3` has 3 nodes registered in Nomad at startup
+- A group with `count = 3` has 3 nodes registered in Nomad at startup
 - `POST /v1/groups/{name}/scale` with `{"count": 5}` results in 5 nodes in Nomad
 - Scaling down removes the highest-indexed nodes
 - The same desired count always produces the same node IDs (deterministic)

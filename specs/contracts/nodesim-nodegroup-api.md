@@ -41,7 +41,7 @@ Request:
 ```json
 {
   "name":        "my-group",
-  "start_count": 3,
+  "count": 3,
   "node": {
     "node_pool":   "web-nodes",
     "region":      "global",
@@ -57,7 +57,7 @@ Request:
 ```
 
 All fields inside `node` are optional; omitted fields inherit from the base `node {}` config.
-`start_count` defaults to 0 if omitted.
+`count` defaults to 0 if omitted.
 
 Response `201`:
 
@@ -65,19 +65,19 @@ Response `201`:
 {
   "name":          "my-group",
   "node_pool":     "web-nodes",
-  "desired_count": 3,
-  "current_count": 3,
+  "count": "count": 3,
+  "nodes": "nodes": 3,
   "ready":         true
 }
 ```
 
-Response `400` if `name` is missing or `start_count` is negative.
+Response `400` if `name` is missing or `count` is negative.
 Response `409` if a group with that name already exists.
 
 ```sh
 curl -s -X POST http://nodesim:8082/v1/groups \
   -H 'Content-Type: application/json' \
-  -d '{"name":"my-group","start_count":3,"node":{"node_pool":"web-nodes"}}'
+  -d '{"name":"my-group","count":3,"node":{"node_pool":"web-nodes"}}'
 ```
 
 ---
@@ -118,8 +118,8 @@ Response `200`:
 ```json
 {
   "name":          "my-group",
-  "desired_count": 5,
-  "current_count": 5
+  "count": "count": 5,
+  "nodes": "nodes": 5
 }
 ```
 
@@ -146,14 +146,14 @@ Response `200`:
 {
   "name":          "my-group",
   "node_pool":     "web-nodes",
-  "desired_count": 3,
-  "current_count": 3,
+  "count": "count": 3,
+  "nodes": "nodes": 3,
   "ready":         true
 }
 ```
 
-`ready` is `true` when `current_count == desired_count`.
-The `nodesim-target` plugin uses `current_count` for `Status().Count` and `ready` for `Status().Ready`.
+`ready` is `true` when `nodes == count`.
+The `nodesim-target` plugin uses `nodes` for `Status().Count` and `ready` for `Status().Ready`.
 
 Response `404` if the group does not exist.
 
