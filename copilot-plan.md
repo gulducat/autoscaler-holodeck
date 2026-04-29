@@ -85,7 +85,7 @@ Phase 1 can be worked in parallel with Phase 0 since the contracts don't require
 | [`specs/holodeck-apm.md`](./specs/holodeck-apm.md) | this repo | autoscaler APM plugin | 🔲 not started |
 | [`specs/nodesim-target.md`](./specs/nodesim-target.md) | this repo | autoscaler target plugin for node groups | 🔲 not started |
 | [`specs/nodesim-asg.md`](./specs/nodesim-asg.md) | `hashicorp/nomad-nodesim` | node group concept + HTTP API extension | ✅ complete (feat/node-groups, PR pending) |
-| [`specs/nomad-jobs.md`](./specs/nomad-jobs.md) | this repo | Nomad job files to run the full system | 🔲 not started |
+| [`specs/nomad-jobs.md`](./specs/nomad-jobs.md) | this repo | Nomad job files to run the full system | 🟡 in progress — holodeck + observer job done; autoscaler + nodesim pending |
 
 ---
 
