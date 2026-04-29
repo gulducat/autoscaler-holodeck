@@ -44,14 +44,16 @@ policy:
 		holodeck-tasks \
 		jobs/holodeck-policy.hcl
 
+bin/plugins/holodeck-apm:
+bin/plugins/nodesim-target:
+bin/plugins/%:
+	@mkdir -p bin/plugins
+	go build -o bin/plugins/$* ./plugins/$*
+
+
 bin/holodeck:
 bin/observer:
 bin/%:
 	@mkdir -p bin
 	go build -o bin/$* ./$*/cmd/$*
 
-bin/plugins/holodeck-apm:
-bin/plugins/nodesim-target:
-bin/plugins/%:
-	@mkdir -p bin/plugins
-	go build -o bin/plugins/$* ./plugins/$*
