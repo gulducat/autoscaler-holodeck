@@ -1,6 +1,6 @@
 MODULES := holodeck observer plugins/holodeck-apm plugins/nodesim-target
 
-.PHONY: build test lint tidy
+.PHONY: build test lint tidy visual
 
 build:
 	@for m in $(MODULES); do \
@@ -25,3 +25,7 @@ tidy:
 		echo "==> tidy $$m"; \
 		(cd $$m && go mod tidy); \
 	done
+
+visual:
+	@echo "==> visual observer UI"
+	@cd observer && VISUAL=1 go test ./... -run TestUI_Visual -v
