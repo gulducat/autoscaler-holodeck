@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Observer</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+  <header>
+    <h1>Observer</h1>
+    <span id="run-badge">run —</span>
+    <span id="status">connecting…</span>
+  </header>
+
+  <table>
+    <thead>
+      <tr>
+        <th>seq</th>
+        <th>run</th>
+        <th>ingested_at</th>
+        <th>source</th>
+        <th>kind</th>
+        <th>payload</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <script>
+    const tbody = document.getElementById('tbody');
+    const runBadge = document.getElementById('run-badge');
+    const status = document.getElementById('status');
+    let since = 0;
+
+    function srcClass(source) {
+      return 'src-' + source.replace(/[^a-z0-9]/g, '-');
+    }
+
+    function appendEvent(e) {
+      const tr = document.createElement('tr');
+      if (e.kind === 'world_reset') tr.className = 'run-boundary';
+
+      [e.seq, e.run, e.ingested_at, `<span class="${srcClass(e.source)}">${e.source}</span>`, e.kind].forEach(val => {
+        const td = document.createElement('td');
+        td.innerHTML = val;
+        tr.appendChild(td);
+      });
+
+      const payloadTd = document.createElement('td');
+      payloadTd.className = 'payload';
+      payloadTd.textContent = JSON.stringify(e.payload);
+      tr.appendChild(payloadTd);
+
+      tbody.appendChild(tr);
+    }
+
+    async function poll() {
+      try {
+        const res = await fetch(`/v1/events?since=${since}`);
+        if (!res.ok) { status.textContent = `HTTP ${res.status}`; return; }
+        const data = await res.json();
+        runBadge.textContent = `run ${data.run}`;
+        status.textContent = `last poll: ${new Date().toLocaleTimeString()}`;
+        for (const e of data.events) {
+          since = e.seq;
+          appendEvent(e);
+        }
+      } catch (err) {
+        status.textContent = `error: ${err.message}`;
+      }
+    }
+
+    poll();
+    setInterval(poll, 2000);
+  </script>
+</body>
+</html>
