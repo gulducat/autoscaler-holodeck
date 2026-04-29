@@ -63,11 +63,11 @@ Response `201`:
 
 ```json
 {
-  "name":          "my-group",
-  "node_pool":     "web-nodes",
-  "count": "count": 3,
-  "nodes": "nodes": 3,
-  "ready":         true
+  "name":      "my-group",
+  "node_pool": "web-nodes",
+  "count": 3,
+  "nodes": 3,
+  "ready": true
 }
 ```
 
@@ -117,9 +117,9 @@ Response `200`:
 
 ```json
 {
-  "name":          "my-group",
-  "count": "count": 5,
-  "nodes": "nodes": 5
+  "name":  "my-group",
+  "count": 5,
+  "nodes": 5
 }
 ```
 
@@ -144,11 +144,11 @@ Response `200`:
 
 ```json
 {
-  "name":          "my-group",
-  "node_pool":     "web-nodes",
-  "count": "count": 3,
-  "nodes": "nodes": 3,
-  "ready":         true
+  "name":      "my-group",
+  "node_pool": "web-nodes",
+  "count": 3,
+  "nodes": 3,
+  "ready": true
 }
 ```
 
@@ -177,6 +177,31 @@ curl -s http://nodesim:8082/v1/groups
 
 ---
 
+### List Group Nodes
+
+Returns the name and Nomad node ID of every running node in the group. Useful for correlating nodesim indices with Nomad node UUIDs.
+
+```
+GET /v1/groups/{name}/nodes
+```
+
+Response `200`:
+
+```json
+[
+  {"name": "my-group-0", "id": "aaaaaaaa-1111-..."},
+  {"name": "my-group-1", "id": "bbbbbbbb-2222-..."}
+]
+```
+
+Response `404` if the group does not exist.
+
+```sh
+curl -s http://nodesim:8082/v1/groups/my-group/nodes
+```
+
+---
+
 ### Health
 
 ```
@@ -200,4 +225,5 @@ curl -s http://nodesim:8082/v1/health
 - The API contains no policy logic — it is purely imperative ("make it N").
 - The `nodesim-target` plugin translates autoscaler scaling intent into calls to this API.
 - Groups may be pre-declared in HCL config or created at runtime via `POST /v1/groups`.
-- Node naming is deterministic: `<group_name>-<index>` (e.g. `web-0`, `web-1`).
+- Node names follow the pattern `<group_name>-<index>`. Each group maintains an ever-increasing index counter: indices are never reused across create/delete cycles, so every new node gets a fresh state directory and a unique Nomad node ID.
+- Unknown JSON fields in request bodies are rejected with `400` and an error message naming the offending field.

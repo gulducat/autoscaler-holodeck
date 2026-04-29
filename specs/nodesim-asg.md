@@ -29,9 +29,9 @@ The type and concept is called **NodeGroup** (Go: `NodeGroup`, `Manager`). It is
 
 A node group maps to a **Nomad node pool**: the `node_pool` field on the group's `node {}` config block determines which pool the group's nodes join. Node pool membership is visible natively in the Nomad UI and API, and the autoscaler's `node_pool` target config key works without modification.
 
-### Deterministic node identity
+### Node identity and index reuse
 
-Nodes in a group are named `<group_name>-<index>` (e.g. `web-0`, `web-1`). Since Nomad derives node ID from the client state directory path, and the state directory is derived from the node name, the same index always produces the same node ID across restarts.
+Nodes in a group are named `<group_name>-<index>` (e.g. `web-0`, `web-1`). Each group maintains a monotonically increasing per-group index counter that is never decremented or reused. When nodes are removed and new ones are added later, they receive fresh indices — and therefore fresh state directories and unique Nomad node IDs. This avoids carrying over stale drain-ineligible state from prior runs without requiring any privileged eligibility RPC.
 
 ### Node factory extraction
 
@@ -84,10 +84,13 @@ group "web" {
 `nodegroup/api.go` — serves on `NODESIM_ASG_ADDR` (default `:8082`):
 
 ```
-GET  /v1/health
-GET  /v1/groups
-GET  /v1/groups/{name}
-POST /v1/groups/{name}/scale  — body: {"count": N}
+GET    /v1/health
+GET    /v1/groups
+POST   /v1/groups                  — body: {"name": "...", "count": N, "node": {...}}
+GET    /v1/groups/{name}
+DELETE /v1/groups/{name}
+POST   /v1/groups/{name}/scale     — body: {"count": N}
+GET    /v1/groups/{name}/nodes
 ```
 
 Response shapes match [`specs/contracts/nodesim-nodegroup-api.md`](../contracts/nodesim-nodegroup-api.md) exactly.
@@ -113,13 +116,12 @@ Response shapes match [`specs/contracts/nodesim-nodegroup-api.md`](../contracts/
 - Cloud-accurate scaling behavior
 - Multi-region or multi-datacenter groups
 - Health-check-based node replacement
-- On-demand group creation via the API (groups may be pre-declared in config OR created at runtime)
 
 ## Acceptance Criteria
 
 - `GET /v1/health` returns 200
 - A group with `count = 3` has 3 nodes registered in Nomad at startup
 - `POST /v1/groups/{name}/scale` with `{"count": 5}` results in 5 nodes in Nomad
-- Scaling down removes the highest-indexed nodes
-- The same desired count always produces the same node IDs (deterministic)
+- Scaling down removes the highest-indexed nodes first
+- Nodes created after a scale-down cycle receive new indices (never reused), ensuring fresh Nomad node IDs
 - A config with no `node_num` (or `node_num = 0`) starts cleanly with only group nodes
