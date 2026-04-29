@@ -1,0 +1,26 @@
+name: Go Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - holodeck
+          - observer
+          - plugins/holodeck-apm
+          - plugins/nodesim-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: Test ${{ matrix.module }}
+        working-directory: ${{ matrix.module }}
+        run: go test ./...
