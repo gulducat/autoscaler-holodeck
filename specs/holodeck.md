@@ -32,9 +32,25 @@ World state is mutable via the authoring HTTP API.
 
 ### Metric evolution
 
-A background loop that recalculates capacity-coupled metric values as Nomad state changes. Nomad state (alloc count, node count) is polled from the Nomad API.
+A background goroutine that subscribes to the **Nomad event stream** using the `github.com/hashicorp/nomad/api` Go SDK (`client.EventStream()`). Subscribe to the `Allocation` and `Node` topics. On each incoming event, update the running alloc/node counts and immediately recalculate capacity-coupled metric values.
 
-Only the Nomad API is needed — do not embed a Nomad agent.
+Do not poll the Nomad API on a timer — use the event stream so updates are applied as soon as Nomad state changes.
+
+Only the Nomad API is needed — do not embed a Nomad agent. The service must start cleanly if Nomad is not yet reachable and reconnect automatically.
+
+### Multiple worlds
+
+The service supports more than one named world simultaneously. Each world has its own isolated set of metric rules and authored state. Worlds are identified by a string ID.
+
+The API exposes both explicit world-scoped routes and shorthand routes that default to `world=default`:
+
+| Shorthand | Equivalent |
+|---|---|
+| `GET /v1/metrics` | `GET /v1/worlds/default/metrics` |
+| `PUT /v1/world` | `PUT /v1/worlds/default` |
+| `POST /v1/world/reset` | `POST /v1/worlds/default/reset` |
+
+The shorthand handlers call through to the world-scoped handlers — no duplicated logic.
 
 ### HTTP API
 
@@ -57,15 +73,23 @@ A single-page UI (plain HTML + JS, no build step required) served by the Go bina
 
 This is a debugging/authoring tool, not a monitoring dashboard. Keep it minimal.
 
+The UI is embedded in the binary using Go's `//go:embed` directive, following the same pattern as the Observer UI:
+- `ui.html` and `ui.css` sit next to the Go source
+- `//go:embed` bakes them into the binary at compile time — no runtime file reads
+- An `init()` function inlines the CSS into the HTML so only one route needs to be served
+- The JS uses `fetch()` to call the world authoring and reset endpoints
+
 ## Requirements
 
 - SHALL serve metric queries synchronously on the query endpoint
-- SHALL recalculate capacity-coupled metrics when Nomad alloc/node counts change
+- SHALL subscribe to the Nomad event stream (`Allocation` and `Node` topics) to recalculate capacity-coupled metrics in real time
+- SHALL support multiple named worlds, each with independent metric rules
+- SHALL default to world `default` on shorthand routes
 - SHALL emit world-authoring events to the Observer
 - SHALL NOT store metric history — that is the Observer's job
 - SHALL NOT implement Prometheus query language or compatible query interface
 - SHALL support running without an Observer (degrade gracefully)
-- SHALL support running without Nomad initially connected (start up cleanly, retry)
+- SHALL support running without Nomad initially connected (start up cleanly, reconnect automatically)
 
 ## Non-Goals
 
