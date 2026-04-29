@@ -48,7 +48,22 @@
 
       const payloadTd = document.createElement('td');
       payloadTd.className = 'payload';
-      payloadTd.textContent = JSON.stringify(e.payload);
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      const caret = document.createElement('span');
+      caret.className = 'caret';
+      caret.textContent = '▶';
+      const preview = document.createElement('span');
+      preview.className = 'preview';
+      const raw = JSON.stringify(e.payload);
+      preview.textContent = ' ' + (raw.length > 50 ? raw.slice(0, 50) + '…' : raw);
+      summary.appendChild(caret);
+      summary.appendChild(preview);
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(e.payload, null, 2);
+      details.appendChild(summary);
+      details.appendChild(pre);
+      payloadTd.appendChild(details);
       tr.appendChild(payloadTd);
 
       tbody.appendChild(tr);

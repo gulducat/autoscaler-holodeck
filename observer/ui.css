@@ -54,10 +54,44 @@ td {
 }
 
 td.payload {
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: normal;
   color: #8b949e;
   max-width: 40vw;
+}
+
+td.payload details summary {
+  cursor: pointer;
+  color: #484f58;
+  user-select: none;
+  list-style: none;
+}
+
+td.payload details summary::-webkit-details-marker { display: none; }
+
+td.payload details .caret {
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+td.payload details[open] .caret {
+  transform: rotate(90deg);
+  color: #8b949e;
+}
+
+td.payload details[open] .preview {
+  display: none;
+}
+
+td.payload details[open] summary {
+  margin-bottom: 4px;
+  color: #8b949e;
+}
+
+td.payload details pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 tr.run-boundary td {
