@@ -1,12 +1,9 @@
 MODULES := holodeck observer plugins/holodeck-apm plugins/nodesim-target
 
-.PHONY: build test lint tidy visual
+.PHONY: build test lint tidy clean visual
 
-build:
-	@for m in $(MODULES); do \
-		echo "==> build $$m"; \
-		(cd $$m && go build ./...); \
-	done
+build: bin/holodeck bin/observer bin/plugins/holodeck-apm bin/plugins/nodesim-target
+	@find bin -type f
 
 test:
 	@for m in $(MODULES); do \
@@ -29,3 +26,18 @@ tidy:
 visual:
 	@echo "==> visual observer UI"
 	@cd observer && VISUAL=1 go test ./... -run TestUI_Visual -v
+
+clean:
+	rm -rf bin/
+
+bin/holodeck:
+bin/observer:
+bin/%:
+	@mkdir -p bin
+	go build -o bin/$* ./$*/cmd/$*
+
+bin/plugins/holodeck-apm:
+bin/plugins/nodesim-target:
+bin/plugins/%:
+	@mkdir -p bin/plugins
+	go build -o bin/plugins/$* ./plugins/$*
