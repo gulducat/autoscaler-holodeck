@@ -12,7 +12,7 @@ Implementors of both the Holodeck service and the `holodeck-apm` plugin must not
 
 ## Base URL
 
-`http://holodeck:8080` (address is configurable)
+`http://holodeck:9091` (address is configurable)
 
 ---
 
@@ -84,7 +84,7 @@ GET /v1/health
 ```
 
 ```sh
-curl -s http://holodeck:8080/v1/health
+curl -s http://holodeck:9091/v1/health
 ```
 
 Response `200 OK`:
@@ -115,7 +115,7 @@ Optional query parameters:
 - `group` — Nomad task group name (informational; passed through to Observer event)
 
 ```sh
-curl -s 'http://holodeck:8080/v1/metrics?metric=cpu_utilization&job=my-job&group=web'
+curl -s 'http://holodeck:9091/v1/metrics?metric=cpu_utilization&job=my-job&group=web'
 ```
 
 Response `200 OK`:
@@ -151,7 +151,7 @@ GET /v1/world
 ```
 
 ```sh
-curl -s http://holodeck:8080/v1/world
+curl -s http://holodeck:9091/v1/world
 ```
 
 Response `200 OK`:
@@ -198,7 +198,7 @@ PUT /v1/world
 ```
 
 ```sh
-curl -s -X PUT http://holodeck:8080/v1/world \
+curl -s -X PUT http://holodeck:9091/v1/world \
   -H 'Content-Type: application/json' \
   -d '{
     "metrics": {
@@ -238,7 +238,7 @@ POST /v1/world/reset
 ```
 
 ```sh
-curl -s -X POST http://holodeck:8080/v1/world/reset
+curl -s -X POST http://holodeck:9091/v1/world/reset
 ```
 
 Response `200 OK`:
@@ -256,7 +256,7 @@ GET /v1/worlds
 ```
 
 ```sh
-curl -s http://holodeck:8080/v1/worlds
+curl -s http://holodeck:9091/v1/worlds
 ```
 
 Response `200 OK`:

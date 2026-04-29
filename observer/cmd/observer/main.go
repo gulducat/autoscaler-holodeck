@@ -41,7 +41,7 @@ os.Exit(1)
 
 addr := os.Getenv("OBSERVER_ADDR")
 if addr == "" {
-addr = ":8081"
+addr = ":9090"
 }
 
 store := observer.NewStore()

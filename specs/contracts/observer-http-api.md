@@ -10,7 +10,7 @@ This document defines the HTTP API that the Observer service exposes. It is the 
 
 ## Base URL
 
-`http://observer:8081` (address is configurable via `observer_address` plugin config)
+`http://observer:9090` (address is configurable via `observer_address` plugin config)
 
 ---
 
@@ -48,7 +48,7 @@ POST /v1/events
 **`world_reset`** — sent by Holodeck when a new run begins:
 
 ```sh
-curl -s -X POST http://observer:8081/v1/events \
+curl -s -X POST http://observer:9090/v1/events \
   -H 'Content-Type: application/json' \
   -d '{
     "source":  "holodeck",
@@ -73,7 +73,7 @@ Expected Response `202 Accepted`:
 **`metric_rule_change`** — sent by Holodeck when a metric rule is added or changed:
 
 ```sh
-curl -s -X POST http://observer:8081/v1/events \
+curl -s -X POST http://observer:9090/v1/events \
   -H 'Content-Type: application/json' \
   -d '{
     "source":  "holodeck",
@@ -101,7 +101,7 @@ Expected Response `202 Accepted`:
 **`metric_observation`** — sent by the holodeck-apm plugin after each Query call:
 
 ```sh
-curl -s -X POST http://observer:8081/v1/events \
+curl -s -X POST http://observer:9090/v1/events \
   -H 'Content-Type: application/json' \
   -d '{
     "source":  "holodeck-apm",
@@ -129,7 +129,7 @@ Expected Response `202 Accepted`:
 **`scale_intent`** — sent by the nodesim-target plugin before each Scale call:
 
 ```sh
-curl -s -X POST http://observer:8081/v1/events \
+curl -s -X POST http://observer:9090/v1/events \
   -H 'Content-Type: application/json' \
   -d '{
     "source":  "nodesim-target",
@@ -172,7 +172,7 @@ GET /v1/events?run=<id>&since=<seq>&kind=<kind>
 The UI calls this endpoint without a `run` parameter to get the current run and discovers the run ID from the `run` field of the response.
 
 ```sh
-curl -s 'http://observer:8081/v1/events?since=2&kind=scale_intent'
+curl -s 'http://observer:9090/v1/events?since=2&kind=scale_intent'
 ```
 
 Expected Response `200 OK`:
@@ -207,7 +207,7 @@ GET /v1/health
 ```
 
 ```sh
-curl -s http://observer:8081/v1/health
+curl -s http://observer:9090/v1/health
 ```
 
 Expected Response `200 OK`:

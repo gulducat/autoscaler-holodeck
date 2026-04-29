@@ -29,17 +29,17 @@ func TestSetConfig(t *testing.T) {
 	}{
 		{
 			name:    "valid nodesim only",
-			config:  map[string]string{configKeyNodesim: "http://localhost:8082"},
+			config:  map[string]string{configKeyNodesim: "http://localhost:4649"},
 			wantErr: false,
 		},
 		{
 			name:    "valid nodesim with trailing slash",
-			config:  map[string]string{configKeyNodesim: "http://localhost:8082/"},
+			config:  map[string]string{configKeyNodesim: "http://localhost:4649/"},
 			wantErr: false,
 		},
 		{
 			name:    "valid nodesim and observer",
-			config:  map[string]string{configKeyNodesim: "http://localhost:8082", configKeyObserver: "http://localhost:8081"},
+			config:  map[string]string{configKeyNodesim: "http://localhost:4649", configKeyObserver: "http://localhost:9090"},
 			wantErr: false,
 		},
 		{
@@ -54,12 +54,12 @@ func TestSetConfig(t *testing.T) {
 		},
 		{
 			name:    "invalid observer URL",
-			config:  map[string]string{configKeyNodesim: "http://localhost:8082", configKeyObserver: "not-a-url"},
+			config:  map[string]string{configKeyNodesim: "http://localhost:4649", configKeyObserver: "not-a-url"},
 			wantErr: true,
 		},
 		{
 			name:    "empty observer is allowed",
-			config:  map[string]string{configKeyNodesim: "http://localhost:8082", configKeyObserver: ""},
+			config:  map[string]string{configKeyNodesim: "http://localhost:4649", configKeyObserver: ""},
 			wantErr: false,
 		},
 	}

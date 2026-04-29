@@ -1,6 +1,6 @@
 MODULES := holodeck observer plugins/holodeck-apm plugins/nodesim-target
 
-.PHONY: build test lint tidy clean visual run stop policy
+.PHONY: build test lint tidy clean visual jobs stop policy autoscaler
 
 build: bin/holodeck bin/observer bin/plugins/holodeck-apm bin/plugins/nodesim-target
 	@find bin -type f
@@ -28,10 +28,14 @@ visual:
 	@cd observer && VISUAL=1 go test ./... -run TestUI_Visual -v
 
 clean:
+	$(MAKE) stop || true
 	rm -rf bin/
 
-run: build
-	nomad job run -var="bin_dir=$(CURDIR)/bin" jobs/holodeck.nomad.hcl
+autoscaler: build
+	nomad-autoscaler agent -config demo/autoscaler/agent.hcl
+
+jobs: build
+	nomad job run -var="bin_dir=$(CURDIR)/bin" demo/jobs/holodeck.nomad.hcl
 
 stop:
 	nomad job stop -purge holodeck
@@ -42,14 +46,7 @@ policy:
 		-job=holodeck \
 		-namespace=default \
 		holodeck-tasks \
-		jobs/holodeck-policy.hcl
-
-bin/plugins/holodeck-apm:
-bin/plugins/nodesim-target:
-bin/plugins/%:
-	@mkdir -p bin/plugins
-	go build -o bin/plugins/$* ./plugins/$*
-
+		demo/jobs/holodeck-policy.hcl
 
 bin/holodeck:
 bin/observer:
@@ -57,3 +54,8 @@ bin/%:
 	@mkdir -p bin
 	go build -o bin/$* ./$*/cmd/$*
 
+bin/plugins/holodeck-apm:
+bin/plugins/nodesim-target:
+bin/plugins/%:
+	@mkdir -p bin/plugins
+	go build -o bin/plugins/$* ./plugins/$*

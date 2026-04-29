@@ -8,8 +8,8 @@ job "holodeck" {
 
   group "holodeck-observer" {
     network {
-      port "holodeck" { static = 8080 }
-      port "observer"  { static = 8081 }
+      port "holodeck" { static = 9091 }
+      port "observer"  { static = 9090 }
     }
 
     task "observer" {

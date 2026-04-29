@@ -81,7 +81,7 @@ group "web" {
 
 ### HTTP API
 
-`nodegroup/api.go` — serves on `NODESIM_ASG_ADDR` (default `:8082`):
+`nodegroup/api.go` — serves on `NODESIM_ASG_ADDR` (default `:4649`):
 
 ```
 GET    /v1/health

@@ -10,7 +10,7 @@ This document defines the HTTP API that the extended `nomad-nodesim` service wil
 
 ## Base URL
 
-`http://nodesim:8082` (address is configurable via `nodesim_address` plugin config)
+`http://nodesim:4649` (address is configurable via `nodesim_address` plugin config)
 
 ---
 
@@ -75,7 +75,7 @@ Response `400` if `name` is missing or `count` is negative.
 Response `409` if a group with that name already exists.
 
 ```sh
-curl -s -X POST http://nodesim:8082/v1/groups \
+curl -s -X POST http://nodesim:4649/v1/groups \
   -H 'Content-Type: application/json' \
   -d '{"name":"my-group","count":3,"node":{"node_pool":"web-nodes"}}'
 ```
@@ -94,7 +94,7 @@ Response `204` on success.
 Response `404` if the group does not exist.
 
 ```sh
-curl -s -X DELETE http://nodesim:8082/v1/groups/my-group
+curl -s -X DELETE http://nodesim:4649/v1/groups/my-group
 ```
 
 ---
@@ -127,7 +127,7 @@ Response `400` if `count` is negative.
 Response `404` if the group does not exist.
 
 ```sh
-curl -s -X POST http://nodesim:8082/v1/groups/my-group/scale \
+curl -s -X POST http://nodesim:4649/v1/groups/my-group/scale \
   -H 'Content-Type: application/json' \
   -d '{"count": 5}'
 ```
@@ -158,7 +158,7 @@ The `nodesim-target` plugin uses `nodes` for `Status().Count` and `ready` for `S
 Response `404` if the group does not exist.
 
 ```sh
-curl -s http://nodesim:8082/v1/groups/my-group
+curl -s http://nodesim:4649/v1/groups/my-group
 ```
 
 ---
@@ -172,7 +172,7 @@ GET /v1/groups
 Response `200`: array of group objects (same shape as Get Group).
 
 ```sh
-curl -s http://nodesim:8082/v1/groups
+curl -s http://nodesim:4649/v1/groups
 ```
 
 ---
@@ -197,7 +197,7 @@ Response `200`:
 Response `404` if the group does not exist.
 
 ```sh
-curl -s http://nodesim:8082/v1/groups/my-group/nodes
+curl -s http://nodesim:4649/v1/groups/my-group/nodes
 ```
 
 ---
@@ -215,7 +215,7 @@ Response `200`:
 ```
 
 ```sh
-curl -s http://nodesim:8082/v1/health
+curl -s http://nodesim:4649/v1/health
 ```
 
 ---

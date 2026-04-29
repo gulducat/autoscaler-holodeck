@@ -28,17 +28,17 @@ func TestSetConfig(t *testing.T) {
 	}{
 		{
 			name:    "valid holodeck only",
-			config:  map[string]string{configKeyHolodeck: "http://localhost:8080"},
+			config:  map[string]string{configKeyHolodeck: "http://localhost:9091"},
 			wantErr: false,
 		},
 		{
 			name:    "valid holodeck with trailing slash",
-			config:  map[string]string{configKeyHolodeck: "http://localhost:8080/"},
+			config:  map[string]string{configKeyHolodeck: "http://localhost:9091/"},
 			wantErr: false,
 		},
 		{
 			name:    "valid holodeck and observer",
-			config:  map[string]string{configKeyHolodeck: "http://localhost:8080", configKeyObserver: "http://localhost:8081"},
+			config:  map[string]string{configKeyHolodeck: "http://localhost:9091", configKeyObserver: "http://localhost:9090"},
 			wantErr: false,
 		},
 		{
@@ -53,12 +53,12 @@ func TestSetConfig(t *testing.T) {
 		},
 		{
 			name:    "invalid observer URL",
-			config:  map[string]string{configKeyHolodeck: "http://localhost:8080", configKeyObserver: "not-a-url"},
+			config:  map[string]string{configKeyHolodeck: "http://localhost:9091", configKeyObserver: "not-a-url"},
 			wantErr: true,
 		},
 		{
 			name:    "empty observer is allowed",
-			config:  map[string]string{configKeyHolodeck: "http://localhost:8080", configKeyObserver: ""},
+			config:  map[string]string{configKeyHolodeck: "http://localhost:9091", configKeyObserver: ""},
 			wantErr: false,
 		},
 	}

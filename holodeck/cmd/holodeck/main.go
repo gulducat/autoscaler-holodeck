@@ -21,7 +21,7 @@ func main() {
 
 	addr := os.Getenv("HOLODECK_ADDR")
 	if addr == "" {
-		addr = ":8080"
+		addr = ":9091"
 	}
 
 	observerAddr := os.Getenv("OBSERVER_ADDR")
