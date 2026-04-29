@@ -32,11 +32,13 @@ World state is mutable via the authoring HTTP API.
 
 ### Metric evolution
 
-A background goroutine that subscribes to the **Nomad event stream** using the `github.com/hashicorp/nomad/api` Go SDK (`client.EventStream()`). Subscribe to the `Allocation` and `Node` topics. On each incoming event, update the running alloc/node counts and immediately recalculate capacity-coupled metric values.
+A background goroutine that uses **Nomad blocking queries** via the `github.com/hashicorp/nomad/api` Go SDK to maintain current alloc and node counts. Two watchers run in parallel:
+- `Allocations().List()` with `WaitIndex` — counts allocations with `ClientStatus == "running"`
+- `Nodes().List()` with `WaitIndex` — counts nodes with `Status == "ready"`
 
-Do not poll the Nomad API on a timer — use the event stream so updates are applied as soon as Nomad state changes.
+Each watcher blocks until Nomad state changes, then immediately updates the count and re-issues the query. This gives near-real-time updates without polling on a timer and without subscribing to the event stream. The SDK handles TLS, ACL tokens, namespaces, and other connectivity concerns.
 
-Only the Nomad API is needed — do not embed a Nomad agent. The service must start cleanly if Nomad is not yet reachable and reconnect automatically.
+On error, each watcher retries with exponential backoff (1s–30s). The service starts cleanly if Nomad is not yet reachable.
 
 ### Multiple worlds
 

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Holodeck</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+  <header>
+    <h1>Holodeck</h1>
+    <span id="world-badge">world: default</span>
+    <span id="status">loading…</span>
+  </header>
+
+  <section id="metrics-section">
+    <h2>Metric Rules</h2>
+    <table id="metrics-table">
+      <thead>
+        <tr>
+          <th>name</th>
+          <th>type</th>
+          <th>value / formula</th>
+          <th>modifiers</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+
+  <section id="edit-section">
+    <h2 id="form-title">Add Metric Rule</h2>
+    <form id="metric-form">
+      <label>Name <input type="text" id="f-name" required></label>
+      <label>Type
+        <select id="f-type">
+          <option value="authored">authored (static)</option>
+          <option value="capacity_coupled">capacity_coupled</option>
+        </select>
+      </label>
+
+      <div id="authored-fields">
+        <label>Value <input type="number" step="any" id="f-value" value="0"></label>
+      </div>
+
+      <div id="coupled-fields" hidden>
+        <label>Base <input type="number" step="any" id="f-base" value="0"></label>
+        <label>Alloc factor <input type="number" step="any" id="f-alloc-factor" value="0"></label>
+        <label>Node factor <input type="number" step="any" id="f-node-factor" value="0"></label>
+        <label>Min <input type="number" step="any" id="f-min" placeholder="(none)"></label>
+        <label>Max <input type="number" step="any" id="f-max" placeholder="(none)"></label>
+      </div>
+
+      <details>
+        <summary>Modifiers</summary>
+        <label>Lag (seconds) <input type="number" step="any" id="f-lag" value="0"></label>
+        <label>Saturation <input type="number" step="any" id="f-saturation" value="0" placeholder="0 = off"></label>
+        <label>Diminishing returns factor <input type="number" step="any" id="f-dr" value="0" placeholder="0 = off"></label>
+      </details>
+
+      <div class="form-actions">
+        <button type="submit">Save</button>
+        <button type="button" id="cancel-btn" hidden>Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="danger-section">
+    <button id="reset-btn" class="danger">Reset world</button>
+  </section>
+
+  <script>
+    const worldID = 'default';
+    const base = `/v1/worlds/${worldID}`;
+
+    let currentMetrics = {};
+
+    const tbody = document.getElementById('tbody');
+    const status = document.getElementById('status');
+    const worldBadge = document.getElementById('world-badge');
+    const formTitle = document.getElementById('form-title');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const fType = document.getElementById('f-type');
+
+    fType.addEventListener('change', updateTypeVisibility);
+
+    function updateTypeVisibility() {
+      const cc = fType.value === 'capacity_coupled';
+      document.getElementById('coupled-fields').hidden = !cc;
+      document.getElementById('authored-fields').hidden = cc;
+    }
+
+    function formulaText(rule) {
+      if (rule.type === 'authored') return String(rule.value ?? 0);
+      const parts = [];
+      if (rule.base) parts.push(String(rule.base));
+      if (rule.alloc_factor) parts.push(`${rule.alloc_factor} × allocs`);
+      if (rule.node_factor) parts.push(`${rule.node_factor} × nodes`);
+      const expr = parts.length ? parts.join(' + ') : '0';
+      const bounds = [];
+      if (rule.min != null) bounds.push(`min ${rule.min}`);
+      if (rule.max != null) bounds.push(`max ${rule.max}`);
+      return expr + (bounds.length ? ` [${bounds.join(', ')}]` : '');
+    }
+
+    function modifierText(rule) {
+      const m = [];
+      if (rule.lag_seconds) m.push(`lag ${rule.lag_seconds}s`);
+      if (rule.saturation) m.push(`sat ${rule.saturation}`);
+      if (rule.diminishing_returns_factor) m.push(`dr ${rule.diminishing_returns_factor}`);
+      return m.join(', ');
+    }
+
+    function renderMetrics(metrics) {
+      currentMetrics = metrics;
+      tbody.innerHTML = '';
+      const names = Object.keys(metrics).sort();
+      for (const name of names) {
+        const rule = metrics[name];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${name}</td>
+          <td><span class="type-${rule.type}">${rule.type}</span></td>
+          <td class="formula">${formulaText(rule)}</td>
+          <td class="mods">${modifierText(rule)}</td>
+          <td class="actions">
+            <button class="edit-btn" data-name="${name}">edit</button>
+            <button class="delete-btn danger-small" data-name="${name}">✕</button>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+      tbody.querySelectorAll('.edit-btn').forEach(btn =>
+        btn.addEventListener('click', () => loadEdit(btn.dataset.name)));
+      tbody.querySelectorAll('.delete-btn').forEach(btn =>
+        btn.addEventListener('click', () => deleteMetric(btn.dataset.name)));
+    }
+
+    async function loadWorld() {
+      try {
+        const res = await fetch(base);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        worldBadge.textContent = `world: ${data.id}`;
+        renderMetrics(data.metrics || {});
+        status.textContent = `updated ${new Date().toLocaleTimeString()}`;
+      } catch (err) {
+        status.textContent = `error: ${err.message}`;
+      }
+    }
+
+    async function saveWorld(metrics) {
+      const res = await fetch(base, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({metrics}),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function loadEdit(name) {
+      const rule = currentMetrics[name];
+      document.getElementById('f-name').value = name;
+      document.getElementById('f-name').readOnly = true;
+      fType.value = rule.type || 'authored';
+      document.getElementById('f-value').value = rule.value ?? 0;
+      document.getElementById('f-base').value = rule.base ?? 0;
+      document.getElementById('f-alloc-factor').value = rule.alloc_factor ?? 0;
+      document.getElementById('f-node-factor').value = rule.node_factor ?? 0;
+      document.getElementById('f-min').value = rule.min ?? '';
+      document.getElementById('f-max').value = rule.max ?? '';
+      document.getElementById('f-lag').value = rule.lag_seconds ?? 0;
+      document.getElementById('f-saturation').value = rule.saturation ?? 0;
+      document.getElementById('f-dr').value = rule.diminishing_returns_factor ?? 0;
+      formTitle.textContent = `Edit: ${name}`;
+      cancelBtn.hidden = false;
+      updateTypeVisibility();
+    }
+
+    function clearForm() {
+      document.getElementById('metric-form').reset();
+      document.getElementById('f-name').readOnly = false;
+      formTitle.textContent = 'Add Metric Rule';
+      cancelBtn.hidden = true;
+      fType.value = 'authored';
+      updateTypeVisibility();
+    }
+
+    cancelBtn.addEventListener('click', clearForm);
+
+    document.getElementById('metric-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('f-name').value.trim();
+      if (!name) return;
+
+      const type = fType.value;
+      const rule = {type};
+
+      if (type === 'authored') {
+        rule.value = parseFloat(document.getElementById('f-value').value) || 0;
+      } else {
+        rule.base = parseFloat(document.getElementById('f-base').value) || 0;
+        rule.alloc_factor = parseFloat(document.getElementById('f-alloc-factor').value) || 0;
+        rule.node_factor = parseFloat(document.getElementById('f-node-factor').value) || 0;
+        const min = document.getElementById('f-min').value;
+        const max = document.getElementById('f-max').value;
+        if (min !== '') rule.min = parseFloat(min);
+        if (max !== '') rule.max = parseFloat(max);
+      }
+
+      const lag = parseFloat(document.getElementById('f-lag').value);
+      const sat = parseFloat(document.getElementById('f-saturation').value);
+      const dr = parseFloat(document.getElementById('f-dr').value);
+      if (lag) rule.lag_seconds = lag;
+      if (sat) rule.saturation = sat;
+      if (dr) rule.diminishing_returns_factor = dr;
+
+      try {
+        const updated = {...currentMetrics, [name]: rule};
+        const data = await saveWorld(updated);
+        renderMetrics(data.metrics || {});
+        status.textContent = `saved ${new Date().toLocaleTimeString()}`;
+        clearForm();
+      } catch (err) {
+        status.textContent = `save error: ${err.message}`;
+      }
+    });
+
+    async function deleteMetric(name) {
+      if (!confirm(`Delete metric "${name}"?`)) return;
+      const updated = {...currentMetrics};
+      delete updated[name];
+      try {
+        const data = await saveWorld(updated);
+        renderMetrics(data.metrics || {});
+        status.textContent = `deleted ${name}`;
+      } catch (err) {
+        status.textContent = `delete error: ${err.message}`;
+      }
+    }
+
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+      if (!confirm(`Reset world "${worldID}"? This clears all metric rules and starts a new run.`)) return;
+      try {
+        await fetch(`${base}/reset`, {method: 'POST'});
+        await loadWorld();
+        status.textContent = `world reset`;
+      } catch (err) {
+        status.textContent = `reset error: ${err.message}`;
+      }
+    });
+
+    loadWorld();
+  </script>
+</body>
+</html>
