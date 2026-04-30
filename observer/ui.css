@@ -59,30 +59,61 @@ td.payload {
   max-width: 40vw;
 }
 
-td.payload details summary {
+td.summary {
+  white-space: normal;
+  color: #8b949e;
+  max-width: 30vw;
+}
+
+td.summary details dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 1px 12px;
+  margin-top: 4px;
+}
+
+td.summary details dt {
+  color: #484f58;
+  white-space: nowrap;
+}
+
+td.summary details dd {
+  color: #c9d1d9;
+  word-break: break-all;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+td.payload details summary,
+td.summary details summary {
   cursor: pointer;
   color: #484f58;
   user-select: none;
   list-style: none;
 }
 
-td.payload details summary::-webkit-details-marker { display: none; }
+td.payload details summary::-webkit-details-marker,
+td.summary details summary::-webkit-details-marker { display: none; }
 
-td.payload details .caret {
+td.payload details .caret,
+td.summary details .caret {
   display: inline-block;
   transition: transform 0.15s;
 }
 
-td.payload details[open] .caret {
+td.payload details[open] .caret,
+td.summary details[open] .caret {
   transform: rotate(90deg);
   color: #8b949e;
 }
 
-td.payload details[open] .preview {
+td.payload details[open] .preview,
+td.summary details[open] .preview {
   display: none;
 }
 
-td.payload details[open] summary {
+td.payload details[open] summary,
+td.summary details[open] summary {
   margin-bottom: 4px;
   color: #8b949e;
 }

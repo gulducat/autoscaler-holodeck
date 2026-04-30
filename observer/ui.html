@@ -20,6 +20,7 @@
         <th>ingested_at</th>
         <th>source</th>
         <th>kind</th>
+        <th>summary</th>
         <th>payload</th>
       </tr>
     </thead>
@@ -47,6 +48,28 @@
       });
 
       const payloadTd = document.createElement('td');
+      const summaryTd = document.createElement('td');
+      summaryTd.className = 'summary';
+      if (e.summary != null) {
+        const summaryDetails = document.createElement('details');
+        const summarySummary = document.createElement('summary');
+        const summaryCaret = document.createElement('span');
+        summaryCaret.className = 'caret';
+        summaryCaret.textContent = '▶';
+        const summaryPreview = document.createElement('span');
+        summaryPreview.className = 'preview';
+        const summaryRaw = JSON.stringify(e.summary);
+        summaryPreview.textContent = ' ' + (summaryRaw.length > 50 ? summaryRaw.slice(0, 50) + '…' : summaryRaw);
+        summarySummary.appendChild(summaryCaret);
+        summarySummary.appendChild(summaryPreview);
+        const summaryPre = document.createElement('pre');
+        summaryPre.textContent = JSON.stringify(e.summary, null, 2);
+        summaryDetails.appendChild(summarySummary);
+        summaryDetails.appendChild(summaryPre);
+        summaryTd.appendChild(summaryDetails);
+      }
+      tr.appendChild(summaryTd);
+
       payloadTd.className = 'payload';
       const details = document.createElement('details');
       const summary = document.createElement('summary');

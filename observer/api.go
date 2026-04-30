@@ -56,6 +56,7 @@ Source:  req.Source,
 Kind:    req.Kind,
 SentAt:  req.SentAt,
 Payload: req.Payload,
+Summary: BuildSummary(req.Kind, req.SentAt, req.Payload),
 })
 
 w.Header().Set("Content-Type", "application/json")
