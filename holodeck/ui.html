@@ -32,7 +32,7 @@
 
     <details id="edit-section" class="section-collapsible" open>
       <summary><span class="caret">▶</span> <span id="form-title">Generate Metrics</span></summary>
-      <form id="metric-form">
+      <form id="metric-form" autocomplete="off">
         <label>Name <input type="text" id="f-name" required></label>
         <label>Type
           <select id="f-type">
@@ -44,6 +44,17 @@
 
         <div id="authored-fields">
           <label>Value <input type="number" step="any" id="f-value" value="0"></label>
+          <div id="repeating-fields" hidden>
+            <label>Count <input type="text" id="f-count" maxlength="4" size="4" value="2"></label>
+            <label>Delta
+              <select id="f-delta">
+                <option value="static">static</option>
+                <option value="linear">linear</option>
+              </select>
+            </label>
+            <label id="f-delta-value-label" hidden>Change to Value <input type="number" step="any" id="f-delta-value" value="0"></label>
+            <label id="f-interval-label" hidden>Interval (in seconds) <input type="number" step="any" id="f-interval" value="5"></label>
+          </div>
         </div>
 
         <div id="coupled-fields" hidden>
@@ -71,16 +82,16 @@
     <details id="sample-section" class="section-collapsible" open>
       <summary><span class="caret">▶</span> Use Sample Metric Generation Rules</summary>
       <div id="sampled-wrapper">
-      <table id="sampled-metric-table" class="sampled-metric-table">
-        <thead>
-          <tr>
-            <th>Metric Name</th>
-            <th>Sampled Value</th>
-            <th class="col-action"></th>
-            <th class="col-type">Type</th>
-          </tr>
-        </thead>
-      </table>
+        <table id="sampled-metric-table" class="sampled-metric-table">
+          <thead>
+            <tr>
+              <th>Metric Name</th>
+              <th>Sampled Value</th>
+              <th class="col-action"></th>
+              <th class="col-type">Type</th>
+            </tr>
+          </thead>
+        </table>
       </div>
     </details>
 
@@ -95,9 +106,24 @@
 
       let currentMetrics = {};
       let armedCount = 0;
+      let polling = false;
+      let watchForMetrics = false;
+
+      function startPolling() {
+        if (!watchForMetrics || watchForMetrics.count === 0) {
+          polling = false;
+          return;
+        }
+        if (!polling) return;
+        setTimeout(async () => {
+          await loadWorld();
+          watchForMetrics.count--;
+          startPolling();
+        },watchForMetrics.interval * 1000);
+      }
       function updateArmed(delta) {
         armedCount += delta;
-        document.getElementById('sampled-metric-table').classList.toggle('has-armed', armedCount > 0);
+        document.getElementById('sampled-metric-table').classList.toggle('has-armed',armedCount > 0);
       }
 
       const tbody = document.getElementById('tbody');
@@ -109,14 +135,29 @@
 
       fType.addEventListener('change',updateTypeVisibility);
 
+      document.getElementById('f-delta').addEventListener('change',updateDeltaVisibility);
+
       function updateTypeVisibility() {
-        const cc = fType.value === 'capacity_coupled';
+        const type = fType.value;
+        const cc = type === 'capacity_coupled';
+        const rep = type === 'repeating';
         document.getElementById('coupled-fields').hidden = !cc;
         document.getElementById('authored-fields').hidden = cc;
+        document.getElementById('repeating-fields').hidden = !rep;
+        document.getElementById('f-delta-value-label').hidden = true;
+        updateDeltaVisibility();
+      }
+
+      function updateDeltaVisibility() {
+        const rep = fType.value === 'repeating';
+        const delta = document.getElementById('f-delta').value;
+        const linear = rep && delta === 'linear';
+        document.getElementById('f-delta-value-label').hidden = !linear;
+        document.getElementById('f-interval-label').hidden = !rep;
       }
 
       function formulaText(rule) {
-        if (rule.type === 'authored') return String(rule.value ?? 0);
+        if (rule.type === 'authored' || 'repeated') return String(rule.value ?? 0);
         const parts = [];
         if (rule.base) parts.push(String(rule.base));
         if (rule.alloc_factor) parts.push(`${rule.alloc_factor} × allocs`);
@@ -197,6 +238,7 @@
         document.getElementById('f-lag').value = rule.lag_seconds ?? 0;
         document.getElementById('f-saturation').value = rule.saturation ?? 0;
         document.getElementById('f-dr').value = rule.diminishing_returns_factor ?? 0;
+        document.getElementById('f-delta').value = 'static';
         formTitle.textContent = `Edit: ${name}`;
         cancelBtn.hidden = false;
         updateTypeVisibility();
@@ -221,8 +263,44 @@
         const type = fType.value;
         const rule = { type };
 
+        const lag = parseFloat(document.getElementById('f-lag').value);
+        const sat = parseFloat(document.getElementById('f-saturation').value);
+        const dr = parseFloat(document.getElementById('f-dr').value);
+
         if (type === 'authored') {
           rule.value = parseFloat(document.getElementById('f-value').value) || 0;
+        } else if (type === 'repeating') {
+          const startValue = parseFloat(document.getElementById('f-value').value) || 0;
+          const count = Math.max(1,parseInt(document.getElementById('f-count').value) || 1);
+          const delta = document.getElementById('f-delta').value;
+          const changeToValue = parseFloat(document.getElementById('f-delta-value').value) || 0;
+          const intervalSecs = parseFloat(document.getElementById('f-interval').value) || 10;
+
+          const schedReq = { name,start_value: startValue,count,delta,change_to_value: changeToValue,interval_seconds: intervalSecs };
+          if (lag) schedReq.lag_seconds = lag;
+          if (sat) schedReq.saturation = sat;
+          if (dr) schedReq.diminishing_returns_factor = dr;
+
+          try {
+            const res = await fetch(`${base}/schedule`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(schedReq),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          } catch (err) {
+            status.textContent = `schedule error: ${err.message}`;
+            return;
+          }
+
+          const totalSecs = (count - 1) * intervalSecs;
+          status.textContent = `queued ${count} saves for "${name}" over ${totalSecs}s`;
+          clearForm();
+
+          polling = true;
+          watchForMetrics = { interval: intervalSecs, count };
+          startPolling();
+          return;
         } else {
           rule.base = parseFloat(document.getElementById('f-base').value) || 0;
           rule.alloc_factor = parseFloat(document.getElementById('f-alloc-factor').value) || 0;
@@ -233,9 +311,6 @@
           if (max !== '') rule.max = parseFloat(max);
         }
 
-        const lag = parseFloat(document.getElementById('f-lag').value);
-        const sat = parseFloat(document.getElementById('f-saturation').value);
-        const dr = parseFloat(document.getElementById('f-dr').value);
         if (lag) rule.lag_seconds = lag;
         if (sat) rule.saturation = sat;
         if (dr) rule.diminishing_returns_factor = dr;
@@ -277,11 +352,11 @@
 
       function groupByPrefix(metrics) {
         const groups = {};
-        for (const [name, entry] of Object.entries(metrics)) {
+        for (const [name,entry] of Object.entries(metrics)) {
           const parts = name.split('.');
-          const key = parts.slice(0, 3).join('.');
+          const key = parts.slice(0,3).join('.');
           if (!groups[key]) groups[key] = [];
-          groups[key].push({ name, entry });
+          groups[key].push({ name,entry });
         }
         return groups;
       }
@@ -303,7 +378,7 @@
         }
 
         for (const key of groupKeys) {
-          const items = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+          const items = groups[key].sort((a,b) => a.name.localeCompare(b.name));
           const tb = document.createElement('tbody');
           tb.className = 'sampled-group';
 
@@ -324,7 +399,7 @@
           groupCancelBtn.className = 'sampled-group-cancel-btn';
           groupCancelBtn.textContent = '✕';
           groupCancelBtn.hidden = true;
-          summaryTd.append(caret, nameSpan, groupEditBtn, groupCancelBtn);
+          summaryTd.append(caret,nameSpan,groupEditBtn,groupCancelBtn);
           summaryRow.appendChild(summaryTd);
           tb.appendChild(summaryRow);
 
@@ -353,13 +428,13 @@
             clearForm();
           }
 
-          summaryRow.addEventListener('click', () => setOpen(!groupOpen));
-          groupEditBtn.addEventListener('click', e => { e.stopPropagation(); armGroup(); });
-          groupCancelBtn.addEventListener('click', e => { e.stopPropagation(); disarmGroup(); });
+          summaryRow.addEventListener('click',() => setOpen(!groupOpen));
+          groupEditBtn.addEventListener('click',e => { e.stopPropagation(); armGroup(); });
+          groupCancelBtn.addEventListener('click',e => { e.stopPropagation(); disarmGroup(); });
 
           // Metric rows
           const metricRows = [];
-          for (const { name, entry } of items) {
+          for (const { name,entry } of items) {
             const tr = document.createElement('tr');
             tr.className = 'sampled-metric-row';
             tr.hidden = true;
@@ -380,18 +455,18 @@
             const rowCancelBtn = document.createElement('button');
             rowCancelBtn.className = 'sampled-cancel-btn';
             rowCancelBtn.textContent = '✕';
-            rowCancelBtn.addEventListener('click', () => clearForm());
-            actionTd.append(useSampleBtn, rowCancelBtn);
+            rowCancelBtn.addEventListener('click',() => clearForm());
+            actionTd.append(useSampleBtn,rowCancelBtn);
 
             const typeTd = document.createElement('td');
             typeTd.className = 'sampled-type-col';
-            const typeNames = ['authored', 'capacity_coupled', 'repeating'];
+            const typeNames = ['authored','capacity_coupled','repeating'];
             let selectedType = 'authored';
             const typeBtns = typeNames.map(t => {
               const btn = document.createElement('button');
               btn.className = 'sampled-type-btn' + (t === 'authored' ? ' selected' : '');
               btn.textContent = t;
-              btn.addEventListener('click', () => {
+              btn.addEventListener('click',() => {
                 typeBtns.forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
                 selectedType = t;
@@ -399,6 +474,7 @@
                 document.getElementById('f-name').readOnly = false;
                 fType.value = t;
                 document.getElementById('f-value').value = entry.value;
+                document.getElementById('f-delta').value = 'static';
                 formTitle.textContent = `Add: ${name}`;
                 cancelBtn.hidden = false;
                 updateTypeVisibility();
@@ -408,10 +484,10 @@
             });
             typeBtns.forEach(b => typeTd.appendChild(b));
 
-            useSampleBtn.addEventListener('click', async () => {
+            useSampleBtn.addEventListener('click',async () => {
               if (selectedType === 'authored') {
                 try {
-                  const updated = { ...currentMetrics, [name]: { type: 'authored', value: entry.value } };
+                  const updated = { ...currentMetrics,[name]: { type: 'authored',value: entry.value } };
                   const data = await saveWorld(updated);
                   renderMetrics(data.metrics || {});
                   status.textContent = `added ${name}`;
@@ -423,6 +499,7 @@
                 document.getElementById('f-name').readOnly = false;
                 fType.value = selectedType;
                 document.getElementById('f-value').value = entry.value;
+                document.getElementById('f-delta').value = 'static';
                 formTitle.textContent = `Add: ${name}`;
                 cancelBtn.hidden = false;
                 updateTypeVisibility();
@@ -430,7 +507,7 @@
               }
             });
 
-            tr.append(nameTd, valueTd, actionTd, typeTd);
+            tr.append(nameTd,valueTd,actionTd,typeTd);
             metricRows.push(tr);
             tb.appendChild(tr);
           }
@@ -457,8 +534,10 @@
         }
       }
 
+      updateTypeVisibility();
       loadWorld();
       loadSampledMetrics();
+      startPolling();
     </script>
   </body>
 
