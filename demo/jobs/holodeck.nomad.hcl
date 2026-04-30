@@ -1,7 +1,14 @@
 variable "bin_dir" {
   type        = string
   description = "Absolute path to the directory containing compiled binaries (e.g. /home/user/code/gulducat/autoscaler-holodeck/bin)"
-}
+} 
+
+//sample_urls format is '<metric_type>:<url>:<metric_type>:<url>'."
+//possible metric types include 'holodeck_apm', 'nomad', and 'prometheus' though the last is not implemented"
+variable "sample_urls" {
+  type = string
+  description = "optional colon deleniated string used to load any available sample metrics"
+  }
 
 job "holodeck" {
   type = "service"
@@ -56,6 +63,7 @@ job "holodeck" {
       }
 
       env {
+        SAMPLE_METRICS = var.sample_urls
         HOLODECK_ADDR = ":${NOMAD_PORT_holodeck}"
         OBSERVER_ADDR = "http://localhost:${NOMAD_PORT_observer}"
         NOMAD_ADDR    = "${NOMAD_UNIX_ADDR}"

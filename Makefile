@@ -37,6 +37,9 @@ autoscaler: build
 jobs: build
 	nomad job run -var="bin_dir=$(CURDIR)/bin" demo/jobs/holodeck.nomad.hcl
 
+jobs-sample: build
+	nomad job run -var="bin_dir=$(CURDIR)/bin" -var="sample_urls=nomad_metrics:http://localhost:4646/v1/metrics" demo/jobs/holodeck.nomad.hcl
+
 stop:
 	nomad job stop -purge holodeck
 
@@ -48,14 +51,14 @@ policy:
 		holodeck-tasks \
 		demo/jobs/holodeck-policy.hcl
 
-bin/holodeck:
-bin/observer:
-bin/%:
-	@mkdir -p bin
-	go build -o bin/$* ./$*/cmd/$*
-
 bin/plugins/holodeck-apm:
 bin/plugins/nodesim-target:
 bin/plugins/%:
 	@mkdir -p bin/plugins
 	go build -o bin/plugins/$* ./plugins/$*
+
+bin/holodeck:
+bin/observer:
+bin/%:
+	@mkdir -p bin
+	go build -o bin/$* ./$*/cmd/$*
