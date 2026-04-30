@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -23,8 +22,6 @@ const (
 	configKeyNodesim  = "nodesim_address"
 	configKeyObserver = "observer_address"
 	configKeyGroup    = "node_group"
-	envKeyNodesim     = "NODESIM_GROUPS_ADDR"
-	envKeyObserver    = "OBSERVER_ADDR"
 	observerTimeout   = 3 * time.Second
 	scaleTimeout      = 15 * time.Second
 )
@@ -54,9 +51,9 @@ func (p *Plugin) PluginInfo() (*base.PluginInfo, error) {
 }
 
 func (p *Plugin) SetConfig(config map[string]string) error {
-	addr := strings.TrimRight(configOrEnv(config, configKeyNodesim, envKeyNodesim), "/")
+	addr := strings.TrimRight(config[configKeyNodesim], "/")
 	if addr == "" {
-		return fmt.Errorf("%q config value cannot be empty (or set %s env var)", configKeyNodesim, envKeyNodesim)
+		return fmt.Errorf("%q config value cannot be empty", configKeyNodesim)
 	}
 	nURL, err := url.ParseRequestURI(addr)
 	if err != nil || nURL.Scheme == "" || nURL.Host == "" {
@@ -64,7 +61,7 @@ func (p *Plugin) SetConfig(config map[string]string) error {
 	}
 	p.nodesim = nURL
 
-	if obs := strings.TrimRight(configOrEnv(config, configKeyObserver, envKeyObserver), "/"); obs != "" {
+	if obs := strings.TrimRight(config[configKeyObserver], "/"); obs != "" {
 		oURL, err := url.ParseRequestURI(obs)
 		if err != nil || oURL.Scheme == "" || oURL.Host == "" {
 			return fmt.Errorf("%q is not a valid URL: %s", configKeyObserver, obs)
@@ -73,14 +70,6 @@ func (p *Plugin) SetConfig(config map[string]string) error {
 	}
 
 	return nil
-}
-
-// configOrEnv returns os.Getenv(envVar) if set, otherwise config[key].
-func configOrEnv(config map[string]string, key, envVar string) string {
-	if v := os.Getenv(envVar); v != "" {
-		return v
-	}
-	return config[key]
 }
 
 // groupResponse is the shape of GET /v1/groups/{name} responses.
