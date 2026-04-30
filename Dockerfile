@@ -15,6 +15,12 @@ RUN make build
 
 FROM golang:1.26
 
+# for nodesim
+RUN apt update && apt install -y \
+    iptables \
+    iproute2 \
+    ;
+
 WORKDIR /app
 ENV PATH="/app/bin:${PATH}"
 COPY --from=autoscaler /bin/nomad-autoscaler /app/bin/nomad-autoscaler

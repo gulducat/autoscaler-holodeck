@@ -23,15 +23,18 @@ job "holodeck" {
 
     task "nodesim" {
       # autoscaler target plugin talks to nodesim
-      lifecycle {
-        hook    = "prestart"
-        sidecar = true
-      }
+      #lifecycle {
+      #  hook    = "prestart"
+      #  sidecar = true
+      #}
       driver = "docker"
       config {
         image = "holodeck:local"
         args  = ["nodesim"]
         ports = ["nodesim"]
+
+        privileged = true
+        cgroupns   = "host"
       }
       env {
         NODESIM_GROUPS_ADDR = ":${NOMAD_PORT_nodesim}"
@@ -40,6 +43,12 @@ job "holodeck" {
         provider = "nomad"
         name     = "nodesim"
         port     = "nodesim"
+        check {
+          type     = "http"
+          path     = "/v1/health"
+          interval = "10s"
+          timeout  = "2s"
+        }
       }
     }
 
@@ -123,12 +132,9 @@ job "holodeck" {
         env = true
       }
       env {
-        HOLODECK_ADDR = "http://${NOMAD_ADDR_holodeck}"
-        OBSERVER_ADDR = "http://${NOMAD_ADDR_observer}"
         #NOMAD_ADDR    = "${NOMAD_UNIX_ADDR}"
         NOMAD_ADDR              = "http://192.168.10.11:4646"
-        AUTOSCALER_AGENT_CONFIG = "${NOMAD_TASK_DIR}/agent.hcl"
-        NODESIM_GROUPS_ADDR     = "${NODESIM_ADDR_nodesim}:${NOMAD_PORT_nodesim}"
+        AUTOSCALER_AGENT_CONFIG = "${NOMAD_TASK_DIR}/agent.hcl" # ready by entrypoint
       }
       template {
         destination = "${NOMAD_TASK_DIR}/agent.hcl"
@@ -140,9 +146,17 @@ job "holodeck" {
           }
           apm "holodeck-apm" {
             driver = "holodeck-apm"
+            config = {
+              holodeck_address = "http://{{ env `NOMAD_ADDR_holodeck` }}"
+              observer_address = "http://{{ env `NOMAD_ADDR_observer` }}"
+            }
           }
           target "nodesim-target" {
             driver = "nodesim-target"
+            config = {
+              nodesim_address  = "http://{{ env `NOMAD_ADDR_nodesim` }}"
+              observer_address = "http://{{ env `NOMAD_ADDR_observer` }}"
+            }
           }
         EOF
       }
