@@ -153,6 +153,11 @@
     // ── Render ───────────────────────────────────────────────────────────────
 
     function renderAll() {
+      // Save which history sub-rows are currently open so polls don't collapse them.
+      const openHist = new Set(
+        [...document.querySelectorAll('.hist-sub-row:not([hidden])')].map(tr => tr.dataset.metric).filter(Boolean)
+      );
+
       const authored = {}, cc = {}, scheduled = {};
       for (const [name, entry] of Object.entries(currentMetrics)) {
         const t = entry.rule.type;
@@ -163,6 +168,14 @@
       renderAuthored(authored);
       renderCC(cc);
       renderScheduled(scheduled);
+
+      if (openHist.size) {
+        document.querySelectorAll('.hist-sub-row').forEach(tr => {
+          if (!openHist.has(tr.dataset.metric)) return;
+          tr.hidden = false;
+          document.querySelectorAll(`.btn-hist[data-metric="${CSS.escape(tr.dataset.metric)}"]`).forEach(btn => btn.classList.add('open'));
+        });
+      }
     }
 
     // ── DOM helpers ──────────────────────────────────────────────────────────
@@ -332,6 +345,8 @@
 
       const {tr: modTr, getMods} = makeModRow(rule, 5);
       const histTr = makeHistRow(history, 5);
+      if (histTr) histTr.dataset.metric = name;
+      if (hBtn)   hBtn.dataset.metric   = name;
 
       mBtn.classList.toggle('open', !modTr.hidden);
       wireToggle(mBtn, modTr);
@@ -414,6 +429,8 @@
 
       const {tr: modTr, getMods} = makeModRow(rule, 9);
       const histTr = makeHistRow(history, 9);
+      if (histTr) histTr.dataset.metric = name;
+      if (hBtn)   hBtn.dataset.metric   = name;
 
       mBtn.classList.toggle('open', !modTr.hidden);
       wireToggle(mBtn, modTr);
@@ -503,6 +520,8 @@
         );
 
         const histTr = makeHistRow(history, 5);
+        if (histTr) histTr.dataset.metric = name;
+        if (hBtn)   hBtn.dataset.metric   = name;
         wireToggle(hBtn, histTr);
 
         delB.addEventListener('click', async () => {
@@ -556,6 +575,9 @@
         change_to_value:  parseFloat(sfChange.value) || 0,
         interval_seconds: parseFloat(document.getElementById('sf-interval').value) || 5,
       };
+      const runBtn = document.getElementById('sf-run');
+      runBtn.disabled = true;
+      sfPreview.textContent = 'sending…';
       try {
         const res = await fetch(`${worldBase}/schedule`, {
           method: 'POST',
@@ -564,8 +586,28 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setStatus(`schedule started: ${name} (${req.count} steps)`);
+        sfPreview.textContent = `▶ running: step 1/${req.count}`;
+
+        // Poll for updates throughout the schedule duration.
+        const pollMs = Math.max(1000, req.interval_seconds * 1000 * 0.5);
+        const totalMs = req.interval_seconds * 1000 * req.count;
+        const deadline = Date.now() + totalMs + 2000; // +2s buffer
+        let step = 1;
+        const timer = setInterval(async () => {
+          step++;
+          await loadWorld();
+          if (Date.now() >= deadline) {
+            clearInterval(timer);
+            runBtn.disabled = false;
+            updateSchedulePreview();
+          } else {
+            sfPreview.textContent = `▶ running: step ${Math.min(step, req.count)}/${req.count}`;
+          }
+        }, pollMs);
       } catch (err) {
         setStatus(`schedule error: ${err.message}`);
+        sfPreview.textContent = '';
+        runBtn.disabled = false;
       }
     });
 

@@ -319,8 +319,8 @@ button.edit-btn:hover { background: none; text-decoration: underline; }
 .schedule-fields select:focus { outline: none; border-color: #388bfd; }
 
 .schedule-preview {
-  color: #484f58;
-  font-size: 0.8em;
+  color: #adbac7;
+  font-size: 0.85em;
   min-height: 1.2em;
   white-space: nowrap;
   overflow-x: auto;
