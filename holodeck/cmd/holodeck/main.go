@@ -43,10 +43,10 @@ func main() {
 		holodeck.IngestSampledMetrics(context.Background(), samples, manager, logger.Named("sampler"))
 	}
 
-	srv := holodeck.NewServer(manager)
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	srv := holodeck.NewServer(ctx, manager)
 
 	// Start Nomad poller only if NOMAD_ADDR is configured.
 	nomadAddr := os.Getenv("NOMAD_ADDR")

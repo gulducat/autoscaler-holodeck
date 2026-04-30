@@ -1,6 +1,7 @@
 package holodeck
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,7 @@ import (
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 	m := NewWorldManager(NewNomadTracker(), NewObserverClient("", noopLogger()))
-	return NewServer(m)
+	return NewServer(context.Background(), m)
 }
 
 func doRequest(t *testing.T, srv *Server, method, path, body string) *httptest.ResponseRecorder {

@@ -25,6 +25,8 @@ type MetricRule struct {
 	LagSeconds               float64 `json:"lag_seconds,omitempty"`
 	Saturation               float64 `json:"saturation,omitempty"`
 	DiminishingReturnsFactor float64 `json:"diminishing_returns_factor,omitempty"`
+	Count                    int     `json:"count,omitempty"`
+	Delta                    string  `json:"delta,omitempty"`
 }
 
 // Compute returns the current metric value given Nomad alloc and node counts.
@@ -96,6 +98,26 @@ func (w *World) SetOne(name string, rule MetricRule) bool {
 	}
 	w.metrics[name] = rule
 	return true
+}
+
+// MakeRuleOrStale sets rule at name, first archiving the current rule at name
+// (if any) to staleName. Returns whether name changed, the archived rule, and
+// whether staleName changed.
+func (w *World) MakeRuleOrStale(name, staleName string, rule MetricRule) (ruleChanged bool, staleRule MetricRule, staleChanged bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if existing, ok := w.metrics[name]; ok {
+		if prev, prevOK := w.metrics[staleName]; !prevOK || prev != existing {
+			w.metrics[staleName] = existing
+			staleRule = existing
+			staleChanged = true
+		}
+	}
+	if existing, ok := w.metrics[name]; !ok || existing != rule {
+		w.metrics[name] = rule
+		ruleChanged = true
+	}
+	return
 }
 
 // Reset clears all metric rules.
@@ -200,6 +222,27 @@ func (m *WorldManager) Set(id string, metrics map[string]MetricRule) *World {
 func (m *WorldManager) SetOne(id, name string, rule MetricRule) {
 	w := m.GetOrCreate(id)
 	if w.SetOne(name, rule) {
+		m.observer.Send("metric_rule_change", map[string]any{
+			"world":  id,
+			"metric": name,
+			"rule":   rule,
+		})
+	}
+}
+
+// MakeRuleOrStale upserts rule at name, archiving the prior rule to staleName,
+// and emits metric_rule_change events for any changed entries.
+func (m *WorldManager) MakeRuleOrStale(id, name, staleName string, rule MetricRule) {
+	w := m.GetOrCreate(id)
+	ruleChanged, staleRule, staleChanged := w.MakeRuleOrStale(name, staleName, rule)
+	if staleChanged {
+		m.observer.Send("metric_rule_change", map[string]any{
+			"world":  id,
+			"metric": staleName,
+			"rule":   staleRule,
+		})
+	}
+	if ruleChanged {
 		m.observer.Send("metric_rule_change", map[string]any{
 			"world":  id,
 			"metric": name,

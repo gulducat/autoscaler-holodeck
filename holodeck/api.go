@@ -1,6 +1,7 @@
 package holodeck
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,12 +10,13 @@ import (
 
 // Server is the Holodeck HTTP server.
 type Server struct {
+	ctx     context.Context
 	manager *WorldManager
 	mux     *http.ServeMux
 }
 
-func NewServer(manager *WorldManager) *Server {
-	s := &Server{manager: manager, mux: http.NewServeMux()}
+func NewServer(ctx context.Context, manager *WorldManager) *Server {
+	s := &Server{ctx: ctx, manager: manager, mux: http.NewServeMux()}
 
 	s.mux.HandleFunc("GET /v1/health", s.handleHealth)
 	s.mux.HandleFunc("GET /v1/worlds", s.handleListWorlds)
@@ -23,12 +25,14 @@ func NewServer(manager *WorldManager) *Server {
 	s.mux.HandleFunc("GET /v1/worlds/{id}", s.handleGetWorld)
 	s.mux.HandleFunc("PUT /v1/worlds/{id}", s.handleSetWorld)
 	s.mux.HandleFunc("POST /v1/worlds/{id}/reset", s.handleResetWorld)
+	s.mux.HandleFunc("POST /v1/worlds/{id}/schedule", s.handleScheduleMetric)
 	s.mux.HandleFunc("GET /v1/worlds/{id}/metrics", s.handleQueryMetric)
 
 	// Shorthand routes — default world.
 	s.mux.HandleFunc("GET /v1/world", s.defaultWorld(s.handleGetWorld))
 	s.mux.HandleFunc("PUT /v1/world", s.defaultWorld(s.handleSetWorld))
 	s.mux.HandleFunc("POST /v1/world/reset", s.defaultWorld(s.handleResetWorld))
+	s.mux.HandleFunc("POST /v1/world/schedule", s.defaultWorld(s.handleScheduleMetric))
 	s.mux.HandleFunc("GET /v1/metrics", s.defaultWorld(s.handleQueryMetric))
 
 	s.mux.HandleFunc("GET /v1/sampled-metrics", s.handleGetSampledMetrics)
@@ -126,6 +130,35 @@ func (s *Server) handleQueryMetric(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetSampledMetrics(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"metrics": s.manager.GetSampledMetrics(),
+	})
+}
+
+func (s *Server) handleScheduleMetric(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	var req ScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if req.Count < 1 {
+		req.Count = 1
+	}
+	if req.IntervalSeconds <= 0 {
+		req.IntervalSeconds = 5
+	}
+
+	go s.runSchedule(id, req)
+
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"name":             req.Name,
+		"count":            req.Count,
+		"interval_seconds": req.IntervalSeconds,
+		"delta":            req.Delta,
 	})
 }
 
