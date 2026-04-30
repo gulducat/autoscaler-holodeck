@@ -1,544 +1,714 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Holodeck</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+  <header>
+    <h1>Holodeck</h1>
+    <span id="world-badge">world: default</span>
+    <span id="status">loading…</span>
+  </header>
 
-  <head>
-    <meta charset="UTF-8">
-    <title>Holodeck</title>
-    <link rel="stylesheet" href="/ui.css">
-  </head>
+  <details class="section-collapsible" open>
+    <summary><span class="caret">▶</span> Authored Metrics</summary>
+    <table class="metric-table">
+      <thead><tr>
+        <th>name</th><th>value</th>
+        <th class="col-icon" title="modifiers"></th>
+        <th class="col-icon" title="history"></th>
+        <th class="col-act"></th>
+      </tr></thead>
+      <tbody id="authored-tbody"></tbody>
+    </table>
+  </details>
 
-  <body>
-    <header>
-      <h1>Holodeck</h1>
-      <span id="world-badge">world: default</span>
-      <span id="status">loading…</span>
-    </header>
+  <details class="section-collapsible" open>
+    <summary><span class="caret">▶</span> Capacity-Coupled Metrics</summary>
+    <table class="metric-table">
+      <thead><tr>
+        <th>name</th><th>base</th><th>alloc×</th><th>node×</th><th>min</th><th>max</th>
+        <th class="col-icon"></th>
+        <th class="col-icon"></th>
+        <th class="col-act"></th>
+      </tr></thead>
+      <tbody id="cc-tbody"></tbody>
+    </table>
+  </details>
 
-    <details id="metrics-section" class="section-collapsible" open>
-      <summary><span class="caret">▶</span> Metric Generation Rules</summary>
-      <table id="metrics-table">
-        <thead>
-          <tr>
-            <th>name</th>
-            <th>type</th>
-            <th>value / formula</th>
-            <th>modifiers</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </details>
+  <details class="section-collapsible" open>
+    <summary><span class="caret">▶</span> Scheduled Metrics</summary>
+    <table class="metric-table">
+      <thead><tr>
+        <th>name</th><th>value</th><th>info</th>
+        <th class="col-icon"></th>
+        <th class="col-act"></th>
+      </tr></thead>
+      <tbody id="scheduled-tbody"></tbody>
+    </table>
+  </details>
 
-    <details id="edit-section" class="section-collapsible" open>
-      <summary><span class="caret">▶</span> <span id="form-title">Generate Metrics</span></summary>
-      <form id="metric-form" autocomplete="off">
-        <label>Name <input type="text" id="f-name" required></label>
-        <label>Type
-          <select id="f-type">
-            <option value="authored">authored (static)</option>
-            <option value="capacity_coupled">capacity_coupled</option>
-            <option value="repeating">repeating</option>
+  <details class="section-collapsible" open>
+    <summary><span class="caret">▶</span> Run Schedule</summary>
+    <div class="schedule-form">
+      <div class="schedule-fields">
+        <label>Name<input type="text" id="sf-name" autocomplete="off"></label>
+        <label>Start<input type="number" step="any" id="sf-start" value="0"></label>
+        <label>Steps<input type="number" id="sf-count" value="5" min="1"></label>
+        <label>Interval (s)<input type="number" step="any" id="sf-interval" value="5"></label>
+        <label>Mode
+          <select id="sf-delta">
+            <option value="static">start + step×n</option>
+            <option value="linear">start × (n+1)</option>
           </select>
         </label>
-
-        <div id="authored-fields">
-          <label>Value <input type="number" step="any" id="f-value" value="0"></label>
-          <div id="repeating-fields" hidden>
-            <label>Count <input type="text" id="f-count" maxlength="4" size="4" value="2"></label>
-            <label>Delta
-              <select id="f-delta">
-                <option value="static">static</option>
-                <option value="linear">linear</option>
-              </select>
-            </label>
-            <label id="f-delta-value-label" hidden>Change to Value <input type="number" step="any" id="f-delta-value" value="0"></label>
-            <label id="f-interval-label" hidden>Interval (in seconds) <input type="number" step="any" id="f-interval" value="5"></label>
-          </div>
-        </div>
-
-        <div id="coupled-fields" hidden>
-          <label>Base <input type="number" step="any" id="f-base" value="0"></label>
-          <label>Alloc factor <input type="number" step="any" id="f-alloc-factor" value="0"></label>
-          <label>Node factor <input type="number" step="any" id="f-node-factor" value="0"></label>
-          <label>Min <input type="number" step="any" id="f-min" placeholder="(none)"></label>
-          <label>Max <input type="number" step="any" id="f-max" placeholder="(none)"></label>
-        </div>
-
-        <details>
-          <summary>Modifiers</summary>
-          <label>Lag (seconds) <input type="number" step="any" id="f-lag" value="0"></label>
-          <label>Saturation <input type="number" step="any" id="f-saturation" value="0" placeholder="0 = off"></label>
-          <label>Diminishing returns factor <input type="number" step="any" id="f-dr" value="0" placeholder="0 = off"></label>
-        </details>
-
-        <div class="form-actions">
-          <button type="submit">Save</button>
-          <button type="button" id="cancel-btn" hidden>Cancel</button>
-        </div>
-      </form>
-    </details>
-
-    <details id="sample-section" class="section-collapsible" open>
-      <summary><span class="caret">▶</span> Use Sample Metric Generation Rules</summary>
-      <div id="sampled-wrapper">
-        <table id="sampled-metric-table" class="sampled-metric-table">
-          <thead>
-            <tr>
-              <th>Metric Name</th>
-              <th>Sampled Value</th>
-              <th class="col-action"></th>
-              <th class="col-type">Type</th>
-            </tr>
-          </thead>
-        </table>
+        <label id="sf-step-label">Step<input type="number" step="any" id="sf-change" value="1"></label>
+        <button type="button" id="sf-run">Run</button>
       </div>
-    </details>
+      <div id="sf-preview" class="schedule-preview"></div>
+    </div>
+  </details>
 
+  <details id="sample-section" class="section-collapsible" open>
+    <summary><span class="caret">▶</span> Sample Metrics</summary>
+    <div id="sampled-wrapper">
+      <table id="sampled-metric-table" class="sampled-metric-table">
+        <thead><tr>
+          <th>name</th><th>sampled value</th><th></th>
+        </tr></thead>
+      </table>
+    </div>
+  </details>
 
-    <section id="danger-section">
-      <button id="reset-btn" class="danger">Reset world</button>
-    </section>
+  <section id="danger-section">
+    <button id="reset-btn" class="danger">Reset world</button>
+  </section>
 
-    <script>
-      const worldID = 'default';
-      const base = `/v1/worlds/${worldID}`;
+  <script>
+    const worldID = 'default';
+    const worldBase = `/v1/worlds/${worldID}`;
+    let currentMetrics = {};
 
-      let currentMetrics = {};
-      let armedCount = 0;
-      let polling = false;
-      let watchForMetrics = false;
+    const statusEl = document.getElementById('status');
+    const worldBadge = document.getElementById('world-badge');
+    function setStatus(msg) { statusEl.textContent = msg; }
 
-      function startPolling() {
-        if (!watchForMetrics || watchForMetrics.count === 0) {
-          polling = false;
-          return;
-        }
-        if (!polling) return;
-        setTimeout(async () => {
-          await loadWorld();
-          watchForMetrics.count--;
-          startPolling();
-        },watchForMetrics.interval * 1000);
+    // ── API ─────────────────────────────────────────────────────────────────
+
+    async function loadWorld() {
+      try {
+        const res = await fetch(worldBase);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        worldBadge.textContent = `world: ${data.id}`;
+        currentMetrics = data.metrics || {};
+        renderAll();
+        setStatus(`updated ${new Date().toLocaleTimeString()}`);
+      } catch (err) {
+        setStatus(`error: ${err.message}`);
       }
-      function updateArmed(delta) {
-        armedCount += delta;
-        document.getElementById('sampled-metric-table').classList.toggle('has-armed',armedCount > 0);
+    }
+
+    async function putWorld(metrics) {
+      const res = await fetch(worldBase, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({metrics}),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      currentMetrics = data.metrics || {};
+      renderAll();
+    }
+
+    function rulesSnapshot() {
+      const m = {};
+      for (const [n, e] of Object.entries(currentMetrics)) m[n] = e.rule;
+      return m;
+    }
+
+    async function saveMetric(name, rule) {
+      const m = rulesSnapshot();
+      m[name] = rule;
+      await putWorld(m);
+    }
+
+    async function deleteMetric(name) {
+      const m = rulesSnapshot();
+      delete m[name];
+      await putWorld(m);
+    }
+
+    async function wrapSave(fn) {
+      try {
+        await fn();
+        setStatus(`saved ${new Date().toLocaleTimeString()}`);
+      } catch (err) {
+        setStatus(`error: ${err.message}`);
+      }
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+
+    function renderAll() {
+      const authored = {}, cc = {}, scheduled = {};
+      for (const [name, entry] of Object.entries(currentMetrics)) {
+        const t = entry.rule.type;
+        if (t === 'capacity_coupled') cc[name] = entry;
+        else if (t === 'scheduled')   scheduled[name] = entry;
+        else                          authored[name] = entry;
+      }
+      renderAuthored(authored);
+      renderCC(cc);
+      renderScheduled(scheduled);
+    }
+
+    // ── DOM helpers ──────────────────────────────────────────────────────────
+
+    function numIn(val, w) {
+      const el = document.createElement('input');
+      el.type = 'number'; el.step = 'any';
+      el.value = val ?? ''; if (w) el.style.width = w;
+      return el;
+    }
+
+    function numInPh(ph, w) {
+      const el = numIn('', w); el.placeholder = ph; return el;
+    }
+
+    function txtIn(val, readOnly) {
+      const el = document.createElement('input');
+      el.type = 'text'; el.value = val ?? '';
+      el.className = 'inp-name'; el.readOnly = !!readOnly;
+      return el;
+    }
+
+    function txtInPh(ph) {
+      const el = txtIn(''); el.placeholder = ph; return el;
+    }
+
+    function mkTd(content, cls) {
+      const el = document.createElement('td');
+      if (cls) el.className = cls;
+      if (Array.isArray(content)) content.forEach(c => c && el.appendChild(c));
+      else if (content instanceof Node) el.appendChild(content);
+      else if (content != null) el.textContent = content;
+      return el;
+    }
+
+    function iBtn(label, cls) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.className = 'btn-icon ' + (cls || '');
+      return b;
+    }
+
+    function hasModifiers(rule) {
+      return !!(rule.lag_seconds || rule.saturation || rule.diminishing_returns_factor);
+    }
+
+    function makeModRow(rule, cols) {
+      const tr = document.createElement('tr');
+      tr.className = 'sub-row';
+      tr.hidden = !hasModifiers(rule);
+      const cell = document.createElement('td');
+      cell.colSpan = cols; cell.className = 'sub-row-cell';
+
+      const lagIn  = numIn(rule.lag_seconds || 0, '4em');
+      const satIn  = numIn(rule.saturation || 0, '4em');
+      const drIn   = numIn(rule.diminishing_returns_factor || 0, '4em');
+
+      function pair(lbl, input) {
+        const s = document.createElement('span');
+        s.className = 'mod-pair';
+        const l = document.createElement('span');
+        l.className = 'mod-lbl'; l.textContent = lbl;
+        s.append(l, input); return s;
       }
 
-      const tbody = document.getElementById('tbody');
-      const status = document.getElementById('status');
-      const worldBadge = document.getElementById('world-badge');
-      const formTitle = document.getElementById('form-title');
-      const cancelBtn = document.getElementById('cancel-btn');
-      const fType = document.getElementById('f-type');
+      cell.append(pair('lag (s)', lagIn), pair('saturation', satIn), pair('dr factor', drIn));
+      tr.appendChild(cell);
 
-      fType.addEventListener('change',updateTypeVisibility);
-
-      document.getElementById('f-delta').addEventListener('change',updateDeltaVisibility);
-
-      function updateTypeVisibility() {
-        const type = fType.value;
-        const cc = type === 'capacity_coupled';
-        const rep = type === 'repeating';
-        document.getElementById('coupled-fields').hidden = !cc;
-        document.getElementById('authored-fields').hidden = cc;
-        document.getElementById('repeating-fields').hidden = !rep;
-        document.getElementById('f-delta-value-label').hidden = true;
-        updateDeltaVisibility();
+      function getMods() {
+        return {
+          lag_seconds: parseFloat(lagIn.value) || 0,
+          saturation: parseFloat(satIn.value) || 0,
+          diminishing_returns_factor: parseFloat(drIn.value) || 0,
+        };
       }
+      return {tr, getMods};
+    }
 
-      function updateDeltaVisibility() {
-        const rep = fType.value === 'repeating';
-        const delta = document.getElementById('f-delta').value;
-        const linear = rep && delta === 'linear';
-        document.getElementById('f-delta-value-label').hidden = !linear;
-        document.getElementById('f-interval-label').hidden = !rep;
+    function makeHistRow(history, cols) {
+      if (!history || !history.length) return null;
+      const tr = document.createElement('tr');
+      tr.className = 'sub-row hist-sub-row'; tr.hidden = true;
+      const cell = document.createElement('td');
+      cell.colSpan = cols; cell.className = 'sub-row-cell';
+      const list = document.createElement('div');
+      list.className = 'hist-list';
+      for (let i = history.length - 1; i >= 0; i--) {
+        const e = history[i];
+        const div = document.createElement('div');
+        div.className = 'hist-entry';
+        const t = new Date(e.set_at).toLocaleTimeString();
+        div.textContent = `${t}  ${ruleShortText(e.rule)}`;
+        list.appendChild(div);
       }
+      cell.appendChild(list); tr.appendChild(cell);
+      return tr;
+    }
 
-      function formulaText(rule) {
-        if (rule.type === 'authored' || 'repeated') return String(rule.value ?? 0);
-        const parts = [];
-        if (rule.base) parts.push(String(rule.base));
-        if (rule.alloc_factor) parts.push(`${rule.alloc_factor} × allocs`);
-        if (rule.node_factor) parts.push(`${rule.node_factor} × nodes`);
-        const expr = parts.length ? parts.join(' + ') : '0';
-        const bounds = [];
-        if (rule.min != null) bounds.push(`min ${rule.min}`);
-        if (rule.max != null) bounds.push(`max ${rule.max}`);
-        return expr + (bounds.length ? ` [${bounds.join(', ')}]` : '');
+    function ruleShortText(rule) {
+      if (rule.type === 'capacity_coupled') {
+        const p = [];
+        if (rule.base)         p.push(`base=${rule.base}`);
+        if (rule.alloc_factor) p.push(`alloc×${rule.alloc_factor}`);
+        if (rule.node_factor)  p.push(`node×${rule.node_factor}`);
+        return p.join(' ') || '0';
       }
+      return String(rule.value ?? 0);
+    }
 
-      function modifierText(rule) {
-        const m = [];
-        if (rule.lag_seconds) m.push(`lag ${rule.lag_seconds}s`);
-        if (rule.saturation) m.push(`sat ${rule.saturation}`);
-        if (rule.diminishing_returns_factor) m.push(`dr ${rule.diminishing_returns_factor}`);
-        return m.join(', ');
+    function wireToggle(btn, subRow) {
+      if (!btn || !subRow) return;
+      btn.addEventListener('click', () => {
+        subRow.hidden = !subRow.hidden;
+        btn.classList.toggle('open', !subRow.hidden);
+      });
+    }
+
+    function insertAfterRow(anchor, ...rows) {
+      let ref = anchor;
+      for (const r of rows) {
+        if (r) { ref.insertAdjacentElement('afterend', r); ref = r; }
       }
+    }
 
-      function renderMetrics(metrics) {
-        currentMetrics = metrics;
-        tbody.innerHTML = '';
-        const names = Object.keys(metrics).sort();
-        for (const name of names) {
-          const rule = metrics[name];
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-          <td>${name}</td>
-          <td><span class="type-${rule.type}">${rule.type}</span></td>
-          <td class="formula">${formulaText(rule)}</td>
-          <td class="mods">${modifierText(rule)}</td>
-          <td class="actions">
-            <button class="edit-btn" data-name="${name}">edit</button>
-            <button class="delete-btn danger-small" data-name="${name}">✕</button>
-          </td>`;
-          tbody.appendChild(tr);
-        }
-        tbody.querySelectorAll('.edit-btn').forEach(btn =>
-          btn.addEventListener('click',() => loadEdit(btn.dataset.name)));
-        tbody.querySelectorAll('.delete-btn').forEach(btn =>
-          btn.addEventListener('click',() => deleteMetric(btn.dataset.name)));
+    function applyEnterKey(inputs, btn) {
+      inputs.forEach(inp => inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') btn.click();
+      }));
+    }
+
+    function nonZeroMods(mods) {
+      const out = {};
+      if (mods.lag_seconds)                out.lag_seconds = mods.lag_seconds;
+      if (mods.saturation)                 out.saturation = mods.saturation;
+      if (mods.diminishing_returns_factor) out.diminishing_returns_factor = mods.diminishing_returns_factor;
+      return out;
+    }
+
+    // ── Authored ─────────────────────────────────────────────────────────────
+
+    function renderAuthored(entries) {
+      const tbody = document.getElementById('authored-tbody');
+      tbody.innerHTML = '';
+      for (const name of Object.keys(entries).sort()) {
+        appendAuthoredRow(tbody, name, entries[name]);
       }
+      tbody.appendChild(makeAuthoredNewRow());
+    }
 
-      async function loadWorld() {
-        try {
-          const res = await fetch(base);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          worldBadge.textContent = `world: ${data.id}`;
-          renderMetrics(data.metrics || {});
-          status.textContent = `updated ${new Date().toLocaleTimeString()}`;
-        } catch (err) {
-          status.textContent = `error: ${err.message}`;
-        }
+    function appendAuthoredRow(tbody, name, entry) {
+      const {rule, history} = entry;
+      const nameIn = txtIn(name, true);
+      const valIn  = numIn(rule.value ?? 0, '6em');
+
+      const mBtn = iBtn('⚙', 'btn-mod' + (hasModifiers(rule) ? ' active' : ''));
+      const hc   = history?.length || 0;
+      const hBtn = hc > 0 ? iBtn(`↺${hc}`, 'btn-hist') : null;
+      const saveB = iBtn('✓', 'btn-save');
+      const delB  = iBtn('✕', 'btn-del');
+
+      const tr = document.createElement('tr');
+      tr.className = 'metric-row';
+      tr.append(
+        mkTd(nameIn), mkTd(valIn),
+        mkTd(mBtn, 'col-icon'), mkTd(hBtn, 'col-icon'),
+        mkTd([saveB, delB], 'col-act'),
+      );
+
+      const {tr: modTr, getMods} = makeModRow(rule, 5);
+      const histTr = makeHistRow(history, 5);
+
+      mBtn.classList.toggle('open', !modTr.hidden);
+      wireToggle(mBtn, modTr);
+      wireToggle(hBtn, histTr);
+
+      saveB.addEventListener('click', async () => {
+        const mods = getMods();
+        await wrapSave(() => saveMetric(name, {
+          type: 'authored',
+          value: parseFloat(valIn.value) || 0,
+          ...nonZeroMods(mods),
+        }));
+      });
+      delB.addEventListener('click', async () => {
+        if (!confirm(`Delete "${name}"?`)) return;
+        await wrapSave(() => deleteMetric(name));
+      });
+      applyEnterKey([valIn], saveB);
+
+      tbody.appendChild(tr);
+      insertAfterRow(tr, modTr, histTr);
+    }
+
+    function makeAuthoredNewRow() {
+      const nameIn = txtInPh('name');
+      const valIn  = numInPh('0', '6em');
+      const saveB  = iBtn('✓', 'btn-save');
+
+      const tr = document.createElement('tr');
+      tr.className = 'metric-row new-row';
+      tr.append(
+        mkTd(nameIn), mkTd(valIn),
+        mkTd(null, 'col-icon'), mkTd(null, 'col-icon'),
+        mkTd(saveB, 'col-act'),
+      );
+      saveB.addEventListener('click', async () => {
+        const name = nameIn.value.trim();
+        if (!name) { nameIn.focus(); return; }
+        await wrapSave(() => saveMetric(name, {
+          type: 'authored', value: parseFloat(valIn.value) || 0,
+        }));
+      });
+      applyEnterKey([nameIn, valIn], saveB);
+      return tr;
+    }
+
+    // ── Capacity-Coupled ─────────────────────────────────────────────────────
+
+    function renderCC(entries) {
+      const tbody = document.getElementById('cc-tbody');
+      tbody.innerHTML = '';
+      for (const name of Object.keys(entries).sort()) {
+        appendCCRow(tbody, name, entries[name]);
       }
+      tbody.appendChild(makeCCNewRow());
+    }
 
-      async function saveWorld(metrics) {
-        const res = await fetch(base,{
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ metrics }),
+    function appendCCRow(tbody, name, entry) {
+      const {rule, history} = entry;
+      const nameIn  = txtIn(name, true);
+      const baseIn  = numIn(rule.base ?? 0, '5em');
+      const allocIn = numIn(rule.alloc_factor ?? 0, '5em');
+      const nodeIn  = numIn(rule.node_factor ?? 0, '5em');
+      const minIn   = numIn(rule.min ?? '', '4em'); if (!rule.min) minIn.placeholder = '—';
+      const maxIn   = numIn(rule.max ?? '', '4em'); if (!rule.max) maxIn.placeholder = '—';
+
+      const mBtn  = iBtn('⚙', 'btn-mod' + (hasModifiers(rule) ? ' active' : ''));
+      const hc    = history?.length || 0;
+      const hBtn  = hc > 0 ? iBtn(`↺${hc}`, 'btn-hist') : null;
+      const saveB = iBtn('✓', 'btn-save');
+      const delB  = iBtn('✕', 'btn-del');
+
+      const tr = document.createElement('tr');
+      tr.className = 'metric-row';
+      tr.append(
+        mkTd(nameIn), mkTd(baseIn), mkTd(allocIn), mkTd(nodeIn), mkTd(minIn), mkTd(maxIn),
+        mkTd(mBtn, 'col-icon'), mkTd(hBtn, 'col-icon'),
+        mkTd([saveB, delB], 'col-act'),
+      );
+
+      const {tr: modTr, getMods} = makeModRow(rule, 9);
+      const histTr = makeHistRow(history, 9);
+
+      mBtn.classList.toggle('open', !modTr.hidden);
+      wireToggle(mBtn, modTr);
+      wireToggle(hBtn, histTr);
+
+      saveB.addEventListener('click', async () => {
+        const mods = getMods();
+        const r = {
+          type: 'capacity_coupled',
+          base: parseFloat(baseIn.value) || 0,
+          alloc_factor: parseFloat(allocIn.value) || 0,
+          node_factor: parseFloat(nodeIn.value) || 0,
+          ...nonZeroMods(mods),
+        };
+        if (minIn.value !== '') r.min = parseFloat(minIn.value);
+        if (maxIn.value !== '') r.max = parseFloat(maxIn.value);
+        await wrapSave(() => saveMetric(name, r));
+      });
+      delB.addEventListener('click', async () => {
+        if (!confirm(`Delete "${name}"?`)) return;
+        await wrapSave(() => deleteMetric(name));
+      });
+      applyEnterKey([baseIn, allocIn, nodeIn, minIn, maxIn], saveB);
+
+      tbody.appendChild(tr);
+      insertAfterRow(tr, modTr, histTr);
+    }
+
+    function makeCCNewRow() {
+      const nameIn  = txtInPh('name');
+      const baseIn  = numInPh('0', '5em');
+      const allocIn = numInPh('0', '5em');
+      const nodeIn  = numInPh('0', '5em');
+      const minIn   = numInPh('—', '4em');
+      const maxIn   = numInPh('—', '4em');
+      const saveB   = iBtn('✓', 'btn-save');
+
+      const tr = document.createElement('tr');
+      tr.className = 'metric-row new-row';
+      tr.append(
+        mkTd(nameIn), mkTd(baseIn), mkTd(allocIn), mkTd(nodeIn), mkTd(minIn), mkTd(maxIn),
+        mkTd(null, 'col-icon'), mkTd(null, 'col-icon'), mkTd(saveB, 'col-act'),
+      );
+      saveB.addEventListener('click', async () => {
+        const name = nameIn.value.trim();
+        if (!name) { nameIn.focus(); return; }
+        const r = {
+          type: 'capacity_coupled',
+          base: parseFloat(baseIn.value) || 0,
+          alloc_factor: parseFloat(allocIn.value) || 0,
+          node_factor: parseFloat(nodeIn.value) || 0,
+        };
+        if (minIn.value !== '') r.min = parseFloat(minIn.value);
+        if (maxIn.value !== '') r.max = parseFloat(maxIn.value);
+        await wrapSave(() => saveMetric(name, r));
+      });
+      applyEnterKey([nameIn, baseIn, allocIn, nodeIn, minIn, maxIn], saveB);
+      return tr;
+    }
+
+    // ── Scheduled ────────────────────────────────────────────────────────────
+
+    function renderScheduled(entries) {
+      const tbody = document.getElementById('scheduled-tbody');
+      tbody.innerHTML = '';
+      const names = Object.keys(entries).sort();
+      if (names.length === 0) {
+        const tr = document.createElement('tr');
+        const c = document.createElement('td');
+        c.colSpan = 5; c.className = 'empty-msg';
+        c.textContent = 'No scheduled metrics active.';
+        tr.appendChild(c); tbody.appendChild(tr);
+        return;
+      }
+      for (const name of names) {
+        const {rule, history} = entries[name];
+        const hc   = history?.length || 0;
+        const hBtn = hc > 0 ? iBtn(`↺${hc}`, 'btn-hist') : null;
+        const delB = iBtn('✕', 'btn-del');
+        const info = rule.delta ? `${rule.delta}, ${rule.count} steps` : '';
+
+        const tr = document.createElement('tr');
+        tr.className = 'metric-row';
+        tr.append(
+          mkTd(name), mkTd(String(rule.value ?? 0)), mkTd(info, 'col-info'),
+          mkTd(hBtn, 'col-icon'), mkTd(delB, 'col-act'),
+        );
+
+        const histTr = makeHistRow(history, 5);
+        wireToggle(hBtn, histTr);
+
+        delB.addEventListener('click', async () => {
+          if (!confirm(`Delete "${name}"?`)) return;
+          await wrapSave(() => deleteMetric(name));
+        });
+
+        tbody.appendChild(tr);
+        if (histTr) insertAfterRow(tr, histTr);
+      }
+    }
+
+    // ── Schedule form ─────────────────────────────────────────────────────────
+
+    const sfDelta    = document.getElementById('sf-delta');
+    const sfChange   = document.getElementById('sf-change');
+    const sfStepLbl  = document.getElementById('sf-step-label');
+    const sfPreview  = document.getElementById('sf-preview');
+
+    function updateSchedulePreview() {
+      const start    = parseFloat(document.getElementById('sf-start').value) || 0;
+      const count    = Math.max(1, parseInt(document.getElementById('sf-count').value) || 1);
+      const delta    = sfDelta.value;
+      const step     = parseFloat(sfChange.value) || 0;
+      const interval = parseFloat(document.getElementById('sf-interval').value) || 5;
+
+      sfStepLbl.hidden = (delta === 'linear');
+
+      const values = [];
+      for (let i = 0; i < count; i++) {
+        const change = delta === 'linear' ? start : step;
+        values.push(start + change * (i + 1));
+      }
+      sfPreview.textContent = values
+        .map((v, i) => `t+${(i * interval).toFixed(0)}s → ${v}`)
+        .join('  ');
+    }
+
+    ['sf-start','sf-count','sf-interval','sf-change'].forEach(id =>
+      document.getElementById(id).addEventListener('input', updateSchedulePreview));
+    sfDelta.addEventListener('change', updateSchedulePreview);
+
+    document.getElementById('sf-run').addEventListener('click', async () => {
+      const name = document.getElementById('sf-name').value.trim();
+      if (!name) { document.getElementById('sf-name').focus(); return; }
+      const req = {
+        name,
+        start_value:      parseFloat(document.getElementById('sf-start').value) || 0,
+        count:            Math.max(1, parseInt(document.getElementById('sf-count').value) || 1),
+        delta:            sfDelta.value,
+        change_to_value:  parseFloat(sfChange.value) || 0,
+        interval_seconds: parseFloat(document.getElementById('sf-interval').value) || 5,
+      };
+      try {
+        const res = await fetch(`${worldBase}/schedule`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(req),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+        setStatus(`schedule started: ${name} (${req.count} steps)`);
+      } catch (err) {
+        setStatus(`schedule error: ${err.message}`);
+      }
+    });
+
+    // ── metrics Sampled ──────────────────────
+
+    async function loadSampledMetrics() {
+      try {
+        const res = await fetch('/v1/sampled-metrics');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderSampledMetrics(data.metrics || {});
+      } catch (err) {
+        const t = document.getElementById('sampled-metric-table');
+        t.querySelectorAll('tbody').forEach(b => b.remove());
+        const tb = document.createElement('tbody');
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 3; td.textContent = `error: ${err.message}`;
+        tr.appendChild(td); tb.appendChild(tr); t.appendChild(tb);
+      }
+    }
+
+    function groupByPrefix(metrics) {
+      const groups = {};
+      for (const [name, entry] of Object.entries(metrics)) {
+        const key = name.split('.').slice(0, 3).join('.');
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({name, entry});
+      }
+      return groups;
+    }
+
+    function renderSampledMetrics(metrics) {
+      const table = document.getElementById('sampled-metric-table');
+      table.querySelectorAll('tbody').forEach(b => b.remove());
+
+      const groups = groupByPrefix(metrics);
+      const keys = Object.keys(groups).sort();
+      if (keys.length === 0) {
+        const tb = document.createElement('tbody');
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 3; td.textContent = 'No sampled metrics.';
+        tr.appendChild(td); tb.appendChild(tr); table.appendChild(tb);
+        return;
       }
 
-      function loadEdit(name) {
-        const rule = currentMetrics[name];
-        document.getElementById('f-name').value = name;
-        document.getElementById('f-name').readOnly = true;
-        fType.value = rule.type || 'authored';
-        document.getElementById('f-value').value = rule.value ?? 0;
-        document.getElementById('f-base').value = rule.base ?? 0;
-        document.getElementById('f-alloc-factor').value = rule.alloc_factor ?? 0;
-        document.getElementById('f-node-factor').value = rule.node_factor ?? 0;
-        document.getElementById('f-min').value = rule.min ?? '';
-        document.getElementById('f-max').value = rule.max ?? '';
-        document.getElementById('f-lag').value = rule.lag_seconds ?? 0;
-        document.getElementById('f-saturation').value = rule.saturation ?? 0;
-        document.getElementById('f-dr').value = rule.diminishing_returns_factor ?? 0;
-        document.getElementById('f-delta').value = 'static';
-        formTitle.textContent = `Edit: ${name}`;
-        cancelBtn.hidden = false;
-        updateTypeVisibility();
-      }
+      for (const key of keys) {
+        const items = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+        const tb = document.createElement('tbody');
+        tb.className = 'sampled-group';
 
-      function clearForm() {
-        document.getElementById('metric-form').reset();
-        document.getElementById('f-name').readOnly = false;
-        formTitle.textContent = 'Generate Metrics';
-        cancelBtn.hidden = true;
-        fType.value = 'authored';
-        updateTypeVisibility();
-      }
+        // Group header row
+        const hdrTr = document.createElement('tr');
+        hdrTr.className = 'sampled-group-summary';
+        const hdrTd = document.createElement('td');
+        hdrTd.colSpan = 3;
+        const caret = document.createElement('span');
+        caret.className = 'caret'; caret.textContent = '▶';
+        const lbl = document.createElement('span');
+        lbl.textContent = key;
+        hdrTd.append(caret, lbl);
+        hdrTr.appendChild(hdrTd);
+        tb.appendChild(hdrTr);
 
-      cancelBtn.addEventListener('click',clearForm);
+        let open = false;
+        const metricRows = [];
 
-      document.getElementById('metric-form').addEventListener('submit',async (e) => {
-        e.preventDefault();
-        const name = document.getElementById('f-name').value.trim();
-        if (!name) return;
-
-        const type = fType.value;
-        const rule = { type };
-
-        const lag = parseFloat(document.getElementById('f-lag').value);
-        const sat = parseFloat(document.getElementById('f-saturation').value);
-        const dr = parseFloat(document.getElementById('f-dr').value);
-
-        if (type === 'authored') {
-          rule.value = parseFloat(document.getElementById('f-value').value) || 0;
-        } else if (type === 'repeating') {
-          const startValue = parseFloat(document.getElementById('f-value').value) || 0;
-          const count = Math.max(1,parseInt(document.getElementById('f-count').value) || 1);
-          const delta = document.getElementById('f-delta').value;
-          const changeToValue = parseFloat(document.getElementById('f-delta-value').value) || 0;
-          const intervalSecs = parseFloat(document.getElementById('f-interval').value) || 10;
-
-          const schedReq = { name,start_value: startValue,count,delta,change_to_value: changeToValue,interval_seconds: intervalSecs };
-          if (lag) schedReq.lag_seconds = lag;
-          if (sat) schedReq.saturation = sat;
-          if (dr) schedReq.diminishing_returns_factor = dr;
-
-          try {
-            const res = await fetch(`${base}/schedule`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(schedReq),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          } catch (err) {
-            status.textContent = `schedule error: ${err.message}`;
-            return;
-          }
-
-          const totalSecs = (count - 1) * intervalSecs;
-          status.textContent = `queued ${count} saves for "${name}" over ${totalSecs}s`;
-          clearForm();
-
-          polling = true;
-          watchForMetrics = { interval: intervalSecs, count };
-          startPolling();
-          return;
-        } else {
-          rule.base = parseFloat(document.getElementById('f-base').value) || 0;
-          rule.alloc_factor = parseFloat(document.getElementById('f-alloc-factor').value) || 0;
-          rule.node_factor = parseFloat(document.getElementById('f-node-factor').value) || 0;
-          const min = document.getElementById('f-min').value;
-          const max = document.getElementById('f-max').value;
-          if (min !== '') rule.min = parseFloat(min);
-          if (max !== '') rule.max = parseFloat(max);
+        function setOpen(v) {
+          open = v;
+          caret.style.transform = v ? 'rotate(90deg)' : '';
+          metricRows.forEach(r => r.hidden = !v);
         }
+        hdrTr.addEventListener('click', () => setOpen(!open));
 
-        if (lag) rule.lag_seconds = lag;
-        if (sat) rule.saturation = sat;
-        if (dr) rule.diminishing_returns_factor = dr;
-
-        try {
-          const updated = { ...currentMetrics,[name]: rule };
-          const data = await saveWorld(updated);
-          renderMetrics(data.metrics || {});
-          status.textContent = `saved ${new Date().toLocaleTimeString()}`;
-          clearForm();
-        } catch (err) {
-          status.textContent = `save error: ${err.message}`;
-        }
-      });
-
-      async function deleteMetric(name) {
-        if (!confirm(`Delete metric "${name}"?`)) return;
-        const updated = { ...currentMetrics };
-        delete updated[name];
-        try {
-          const data = await saveWorld(updated);
-          renderMetrics(data.metrics || {});
-          status.textContent = `deleted ${name}`;
-        } catch (err) {
-          status.textContent = `delete error: ${err.message}`;
-        }
-      }
-
-      document.getElementById('reset-btn').addEventListener('click',async () => {
-        if (!confirm(`Reset world "${worldID}"? This clears all metric rules and starts a new run.`)) return;
-        try {
-          await fetch(`${base}/reset`,{ method: 'POST' });
-          await loadWorld();
-          status.textContent = `world reset`;
-        } catch (err) {
-          status.textContent = `reset error: ${err.message}`;
-        }
-      });
-
-      function groupByPrefix(metrics) {
-        const groups = {};
-        for (const [name,entry] of Object.entries(metrics)) {
-          const parts = name.split('.');
-          const key = parts.slice(0,3).join('.');
-          if (!groups[key]) groups[key] = [];
-          groups[key].push({ name,entry });
-        }
-        return groups;
-      }
-
-      function renderSampledMetrics(metrics) {
-        const table = document.getElementById('sampled-metric-table');
-        table.querySelectorAll('tbody').forEach(b => b.remove());
-
-        const groups = groupByPrefix(metrics);
-        const groupKeys = Object.keys(groups).sort();
-        if (groupKeys.length === 0) {
-          const tb = document.createElement('tbody');
+        for (const {name, entry} of items) {
           const tr = document.createElement('tr');
-          const td = document.createElement('td');
-          td.colSpan = 4;
-          td.textContent = 'No sampled metrics available.';
-          tr.appendChild(td); tb.appendChild(tr); table.appendChild(tb);
-          return;
+          tr.className = 'sampled-metric-row'; tr.hidden = true;
+
+          const nameTd = document.createElement('td');
+          nameTd.className = 'sampled-metric-name'; nameTd.textContent = name;
+
+          const valTd = document.createElement('td');
+          valTd.className = 'sampled-metric-value'; valTd.textContent = entry.value;
+
+          const actTd = document.createElement('td');
+          actTd.className = 'sampled-act-col';
+
+          const authoredBtn = document.createElement('button');
+          authoredBtn.className = 'sampled-type-btn'; authoredBtn.textContent = '→ authored';
+          authoredBtn.addEventListener('click', async () => {
+            await wrapSave(() => saveMetric(name, {type: 'authored', value: entry.value}));
+          });
+
+          const ccBtn = document.createElement('button');
+          ccBtn.className = 'sampled-type-btn'; ccBtn.textContent = '→ cc';
+          ccBtn.title = 'add as capacity-coupled with this value as base';
+          ccBtn.addEventListener('click', async () => {
+            await wrapSave(() => saveMetric(name, {
+              type: 'capacity_coupled', base: entry.value,
+              alloc_factor: 0, node_factor: 0,
+            }));
+          });
+
+          const schedBtn = document.createElement('button');
+          schedBtn.className = 'sampled-type-btn'; schedBtn.textContent = '→ schedule';
+          schedBtn.addEventListener('click', () => {
+            document.getElementById('sf-name').value = name;
+            document.getElementById('sf-start').value = entry.value;
+            updateSchedulePreview();
+            document.querySelector('details:has(#sf-run)').open = true;
+            document.getElementById('sf-name').focus();
+          });
+
+          actTd.append(authoredBtn, ccBtn, schedBtn);
+          tr.append(nameTd, valTd, actTd);
+          metricRows.push(tr);
+          tb.appendChild(tr);
         }
 
-        for (const key of groupKeys) {
-          const items = groups[key].sort((a,b) => a.name.localeCompare(b.name));
-          const tb = document.createElement('tbody');
-          tb.className = 'sampled-group';
-
-          // Group summary row
-          const summaryRow = document.createElement('tr');
-          summaryRow.className = 'sampled-group-summary';
-          const summaryTd = document.createElement('td');
-          summaryTd.colSpan = 4;
-          const caret = document.createElement('span');
-          caret.className = 'caret';
-          caret.textContent = '▶';
-          const nameSpan = document.createElement('span');
-          nameSpan.textContent = key;
-          const groupEditBtn = document.createElement('button');
-          groupEditBtn.className = 'sampled-group-edit-btn';
-          groupEditBtn.textContent = 'edit';
-          const groupCancelBtn = document.createElement('button');
-          groupCancelBtn.className = 'sampled-group-cancel-btn';
-          groupCancelBtn.textContent = '✕';
-          groupCancelBtn.hidden = true;
-          summaryTd.append(caret,nameSpan,groupEditBtn,groupCancelBtn);
-          summaryRow.appendChild(summaryTd);
-          tb.appendChild(summaryRow);
-
-          let groupOpen = false;
-          let groupArmed = false;
-
-          function setOpen(open) {
-            groupOpen = open;
-            caret.style.transform = open ? 'rotate(90deg)' : '';
-            metricRows.forEach(r => r.hidden = !open);
-          }
-
-          function armGroup() {
-            groupArmed = true;
-            groupEditBtn.hidden = true;
-            groupCancelBtn.hidden = false;
-            updateArmed(+1);
-            setOpen(true);
-          }
-
-          function disarmGroup() {
-            groupArmed = false;
-            groupEditBtn.hidden = false;
-            groupCancelBtn.hidden = true;
-            updateArmed(-1);
-            clearForm();
-          }
-
-          summaryRow.addEventListener('click',() => setOpen(!groupOpen));
-          groupEditBtn.addEventListener('click',e => { e.stopPropagation(); armGroup(); });
-          groupCancelBtn.addEventListener('click',e => { e.stopPropagation(); disarmGroup(); });
-
-          // Metric rows
-          const metricRows = [];
-          for (const { name,entry } of items) {
-            const tr = document.createElement('tr');
-            tr.className = 'sampled-metric-row';
-            tr.hidden = true;
-
-            const nameTd = document.createElement('td');
-            nameTd.className = 'sampled-metric-name';
-            nameTd.textContent = name;
-
-            const valueTd = document.createElement('td');
-            valueTd.className = 'sampled-metric-value';
-            valueTd.textContent = entry.value;
-
-            const actionTd = document.createElement('td');
-            actionTd.className = 'sampled-action-col';
-            const useSampleBtn = document.createElement('button');
-            useSampleBtn.className = 'sampled-action-btn';
-            useSampleBtn.textContent = 'use sample';
-            const rowCancelBtn = document.createElement('button');
-            rowCancelBtn.className = 'sampled-cancel-btn';
-            rowCancelBtn.textContent = '✕';
-            rowCancelBtn.addEventListener('click',() => clearForm());
-            actionTd.append(useSampleBtn,rowCancelBtn);
-
-            const typeTd = document.createElement('td');
-            typeTd.className = 'sampled-type-col';
-            const typeNames = ['authored','capacity_coupled','repeating'];
-            let selectedType = 'authored';
-            const typeBtns = typeNames.map(t => {
-              const btn = document.createElement('button');
-              btn.className = 'sampled-type-btn' + (t === 'authored' ? ' selected' : '');
-              btn.textContent = t;
-              btn.addEventListener('click',() => {
-                typeBtns.forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                selectedType = t;
-                document.getElementById('f-name').value = name;
-                document.getElementById('f-name').readOnly = false;
-                fType.value = t;
-                document.getElementById('f-value').value = entry.value;
-                document.getElementById('f-delta').value = 'static';
-                formTitle.textContent = `Add: ${name}`;
-                cancelBtn.hidden = false;
-                updateTypeVisibility();
-                document.getElementById('edit-section').open = true;
-              });
-              return btn;
-            });
-            typeBtns.forEach(b => typeTd.appendChild(b));
-
-            useSampleBtn.addEventListener('click',async () => {
-              if (selectedType === 'authored') {
-                try {
-                  const updated = { ...currentMetrics,[name]: { type: 'authored',value: entry.value } };
-                  const data = await saveWorld(updated);
-                  renderMetrics(data.metrics || {});
-                  status.textContent = `added ${name}`;
-                } catch (err) {
-                  status.textContent = `error: ${err.message}`;
-                }
-              } else {
-                document.getElementById('f-name').value = name;
-                document.getElementById('f-name').readOnly = false;
-                fType.value = selectedType;
-                document.getElementById('f-value').value = entry.value;
-                document.getElementById('f-delta').value = 'static';
-                formTitle.textContent = `Add: ${name}`;
-                cancelBtn.hidden = false;
-                updateTypeVisibility();
-                document.getElementById('edit-section').open = true;
-              }
-            });
-
-            tr.append(nameTd,valueTd,actionTd,typeTd);
-            metricRows.push(tr);
-            tb.appendChild(tr);
-          }
-
-          table.appendChild(tb);
-        }
+        table.appendChild(tb);
       }
+    }
 
-      async function loadSampledMetrics() {
-        try {
-          const res = await fetch('/v1/sampled-metrics');
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          renderSampledMetrics(data.metrics || {});
-        } catch (err) {
-          const table = document.getElementById('sampled-metric-table');
-          table.querySelectorAll('tbody').forEach(b => b.remove());
-          const tb = document.createElement('tbody');
-          const tr = document.createElement('tr');
-          const td = document.createElement('td');
-          td.colSpan = 4;
-          td.textContent = `error: ${err.message}`;
-          tr.appendChild(td); tb.appendChild(tr); table.appendChild(tb);
-        }
+    // ── Reset ────────────────────────────────────────────────────────────────
+
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+      if (!confirm(`Reset world "${worldID}"? Clears all metrics and starts a new run.`)) return;
+      try {
+        await fetch(`${worldBase}/reset`, {method: 'POST'});
+        await loadWorld();
+        setStatus('world reset');
+      } catch (err) {
+        setStatus(`reset error: ${err.message}`);
       }
+    });
 
-      updateTypeVisibility();
-      loadWorld();
-      loadSampledMetrics();
-      startPolling();
-    </script>
-  </body>
+    // ── Init ─────────────────────────────────────────────────────────────────
 
+    updateSchedulePreview();
+    renderAll();
+    loadWorld();
+    loadSampledMetrics();
+  </script>
+</body>
 </html>

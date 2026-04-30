@@ -9,9 +9,9 @@ const DefaultWorldID = "default"
 
 // MetricRule defines how a metric value is computed.
 type MetricRule struct {
-	Type string `json:"type"` // "authored" | "capacity_coupled"
+	Type string `json:"type"` // "authored" | "capacity_coupled" | "scheduled"
 
-	// Authored fields.
+	// Authored / scheduled fields.
 	Value float64 `json:"value,omitempty"`
 
 	// Capacity-coupled fields.
@@ -27,6 +27,19 @@ type MetricRule struct {
 	DiminishingReturnsFactor float64 `json:"diminishing_returns_factor,omitempty"`
 	Count                    int     `json:"count,omitempty"`
 	Delta                    string  `json:"delta,omitempty"`
+}
+
+// HistoryEntry is a snapshot of a metric rule captured before it was replaced.
+type HistoryEntry struct {
+	Rule  MetricRule `json:"rule"`
+	SetAt time.Time  `json:"set_at"`
+}
+
+// MetricEntry holds the current rule for a metric and its full change history
+// since the last world reset.
+type MetricEntry struct {
+	Rule    MetricRule     `json:"rule"`
+	History []HistoryEntry `json:"history,omitempty"`
 }
 
 // Compute returns the current metric value given Nomad alloc and node counts.
@@ -55,96 +68,98 @@ func (r MetricRule) Compute(allocCount, nodeCount int64) float64 {
 	return v
 }
 
-// World holds the authored metric rules for one named world.
+// World holds the authored metric entries for one named world.
 type World struct {
 	mu      sync.RWMutex
 	id      string
-	metrics map[string]MetricRule
+	metrics map[string]MetricEntry
 }
 
 func newWorld(id string) *World {
-	return &World{id: id, metrics: make(map[string]MetricRule)}
+	return &World{id: id, metrics: make(map[string]MetricEntry)}
 }
 
 // ID returns the world's identifier.
 func (w *World) ID() string { return w.id }
 
-// Set replaces the full set of metric rules and returns the names of changed metrics.
+// Set replaces the full set of metric rules. For each metric whose rule
+// changes, the previous rule is pushed to its history. Returns the names
+// of changed metrics.
 func (w *World) Set(metrics map[string]MetricRule) []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	now := time.Now().UTC()
 	changed := make([]string, 0, len(metrics))
+	newEntries := make(map[string]MetricEntry, len(metrics))
 	for name, rule := range metrics {
-		if existing, ok := w.metrics[name]; !ok || existing != rule {
+		existing, ok := w.metrics[name]
+		if !ok || existing.Rule != rule {
 			changed = append(changed, name)
+			var history []HistoryEntry
+			if ok {
+				history = make([]HistoryEntry, len(existing.History)+1)
+				copy(history, existing.History)
+				history[len(existing.History)] = HistoryEntry{Rule: existing.Rule, SetAt: now}
+			}
+			newEntries[name] = MetricEntry{Rule: rule, History: history}
+		} else {
+			newEntries[name] = existing
 		}
 	}
-
-	w.metrics = make(map[string]MetricRule, len(metrics))
-	for k, v := range metrics {
-		w.metrics[k] = v
-	}
+	w.metrics = newEntries
 	return changed
 }
 
-// SetOne updates a single metric rule without replacing the full set.
-// Returns true if the rule was new or changed.
+// SetOne upserts a single metric rule, pushing the previous rule to history
+// if it changed. Returns true if the rule was new or changed.
 func (w *World) SetOne(name string, rule MetricRule) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if existing, ok := w.metrics[name]; ok && existing == rule {
+
+	existing, ok := w.metrics[name]
+	if ok && existing.Rule == rule {
 		return false
 	}
-	w.metrics[name] = rule
+
+	now := time.Now().UTC()
+	var history []HistoryEntry
+	if ok {
+		history = make([]HistoryEntry, len(existing.History)+1)
+		copy(history, existing.History)
+		history[len(existing.History)] = HistoryEntry{Rule: existing.Rule, SetAt: now}
+	}
+	w.metrics[name] = MetricEntry{Rule: rule, History: history}
 	return true
 }
 
-// MakeRuleOrStale sets rule at name, first archiving the current rule at name
-// (if any) to staleName. Returns whether name changed, the archived rule, and
-// whether staleName changed.
-func (w *World) MakeRuleOrStale(name, staleName string, rule MetricRule) (ruleChanged bool, staleRule MetricRule, staleChanged bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if existing, ok := w.metrics[name]; ok {
-		if prev, prevOK := w.metrics[staleName]; !prevOK || prev != existing {
-			w.metrics[staleName] = existing
-			staleRule = existing
-			staleChanged = true
-		}
-	}
-	if existing, ok := w.metrics[name]; !ok || existing != rule {
-		w.metrics[name] = rule
-		ruleChanged = true
-	}
-	return
-}
-
-// Reset clears all metric rules.
+// Reset clears all metric entries and their histories.
 func (w *World) Reset() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.metrics = make(map[string]MetricRule)
+	w.metrics = make(map[string]MetricEntry)
 }
 
 // Query returns the computed value for the named metric, or false if not found.
 func (w *World) Query(name string, allocCount, nodeCount int64) (float64, time.Time, bool) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	rule, ok := w.metrics[name]
+	entry, ok := w.metrics[name]
 	if !ok {
 		return 0, time.Time{}, false
 	}
-	return rule.Compute(allocCount, nodeCount), time.Now().UTC(), true
+	return entry.Rule.Compute(allocCount, nodeCount), time.Now().UTC(), true
 }
 
-// State returns a snapshot of the world's metric rules.
-func (w *World) State() map[string]MetricRule {
+// State returns a snapshot of all metric entries (current rules + histories).
+func (w *World) State() map[string]MetricEntry {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	out := make(map[string]MetricRule, len(w.metrics))
+	out := make(map[string]MetricEntry, len(w.metrics))
 	for k, v := range w.metrics {
-		out[k] = v
+		hist := make([]HistoryEntry, len(v.History))
+		copy(hist, v.History)
+		out[k] = MetricEntry{Rule: v.Rule, History: hist}
 	}
 	return out
 }
@@ -222,27 +237,6 @@ func (m *WorldManager) Set(id string, metrics map[string]MetricRule) *World {
 func (m *WorldManager) SetOne(id, name string, rule MetricRule) {
 	w := m.GetOrCreate(id)
 	if w.SetOne(name, rule) {
-		m.observer.Send("metric_rule_change", map[string]any{
-			"world":  id,
-			"metric": name,
-			"rule":   rule,
-		})
-	}
-}
-
-// MakeRuleOrStale upserts rule at name, archiving the prior rule to staleName,
-// and emits metric_rule_change events for any changed entries.
-func (m *WorldManager) MakeRuleOrStale(id, name, staleName string, rule MetricRule) {
-	w := m.GetOrCreate(id)
-	ruleChanged, staleRule, staleChanged := w.MakeRuleOrStale(name, staleName, rule)
-	if staleChanged {
-		m.observer.Send("metric_rule_change", map[string]any{
-			"world":  id,
-			"metric": staleName,
-			"rule":   staleRule,
-		})
-	}
-	if ruleChanged {
 		m.observer.Send("metric_rule_change", map[string]any{
 			"world":  id,
 			"metric": name,

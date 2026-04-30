@@ -171,43 +171,173 @@ button.edit-btn {
 }
 button.edit-btn:hover { background: none; text-decoration: underline; }
 
-/* Sampled metrics */
-.sampled-metric-table {
-  border-collapse: collapse;
-  width: 100%;
+/* ── Inline metric tables ─────────────────────────────────────── */
+
+.metric-table { margin-bottom: 0.5rem; }
+
+.metric-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #161b22;
+  vertical-align: middle;
 }
+
+.metric-table th {
+  padding: 3px 6px;
+}
+
+.metric-table input[type="text"],
+.metric-table input[type="number"] {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+
+.metric-table input[type="text"]:focus,
+.metric-table input[type="number"]:focus {
+  outline: none;
+  border-color: #388bfd;
+  background: #0d1117;
+}
+
+.metric-table input[type="text"][readonly] { color: #8b949e; cursor: default; }
+
+.inp-name { width: 12em; }
+
+.col-icon { width: 2em; text-align: center; padding: 0 2px; white-space: nowrap; }
+.col-act  { width: 4em; text-align: right; white-space: nowrap; padding-right: 4px; }
+.col-info { color: #484f58; font-size: 0.85em; }
+
+.new-row td { opacity: 0.6; }
+.new-row:focus-within td { opacity: 1; }
+
+.new-row .inp-name,
+.new-row input[type="number"] {
+  border-color: #21262d;
+}
+
+.empty-msg { color: #484f58; font-style: italic; padding: 6px 8px; }
+
+/* ── Icon buttons ─────────────────────────────────────────────── */
+
+.btn-icon {
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: #484f58;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 3px;
+}
+.btn-icon:hover { color: #c9d1d9; background: #21262d; }
+
+.btn-mod        { color: #484f58; }
+.btn-mod.active { color: #ffa657; }
+.btn-mod.open   { color: #e6edf3; }
+
+.btn-hist       { color: #388bfd; font-size: 11px; }
+.btn-hist.open  { color: #79c0ff; }
+
+.btn-save { color: #3fb950; }
+.btn-save:hover { color: #56d364; background: none; }
+
+.btn-del  { color: #484f58; }
+.btn-del:hover { color: #f85149; background: none; }
+
+/* ── Sub-rows (modifier + history) ───────────────────────────── */
+
+.sub-row { background: #0d1117; }
+
+.sub-row-cell {
+  padding: 4px 12px 6px;
+  color: #8b949e;
+  font-size: 0.85em;
+}
+
+.mod-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-right: 1.2em;
+}
+
+.mod-lbl { color: #484f58; }
+
+.sub-row-cell input[type="number"] {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 3px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 1px 4px;
+}
+.sub-row-cell input[type="number"]:focus {
+  outline: none; border-color: #388bfd;
+}
+
+.hist-list { display: flex; flex-direction: column; gap: 2px; }
+.hist-entry { color: #8b949e; font-size: 0.85em; }
+.hist-entry::before { content: '→ '; color: #484f58; }
+
+/* ── Schedule form ────────────────────────────────────────────── */
+
+.schedule-form { padding: 0.5rem 0; }
+
+.schedule-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.schedule-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #8b949e;
+  font-size: 0.85rem;
+}
+
+.schedule-fields input,
+.schedule-fields select {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 3px 6px;
+}
+
+.schedule-fields input:focus,
+.schedule-fields select:focus { outline: none; border-color: #388bfd; }
+
+.schedule-preview {
+  color: #484f58;
+  font-size: 0.8em;
+  min-height: 1.2em;
+  white-space: nowrap;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+/* ── Sampled metrics (simplified) ────────────────────────────── */
 
 .sampled-metric-table th {
   padding: 4px 8px 4px 0;
-  color: #8b949e;
-  font-weight: normal;
-  font-size: 0.85rem;
-  border-bottom: 1px solid #30363d;
-  text-align: left;
-  white-space: nowrap;
 }
-
 .sampled-metric-table th:first-child { padding-left: 1rem; }
-
-.sampled-metric-table th.col-action,
-.sampled-metric-table th.col-type,
-.sampled-metric-table td.sampled-action-col,
-.sampled-metric-table td.sampled-type-col {
-  display: none;
-}
-
-.sampled-metric-table.has-armed th.col-action,
-.sampled-metric-table.has-armed th.col-type,
-.sampled-metric-table.has-armed td.sampled-action-col,
-.sampled-metric-table.has-armed td.sampled-type-col {
-  display: table-cell;
-}
 
 .sampled-metric-table td {
   padding: 3px 8px 3px 0;
   border-bottom: 1px solid #21262d;
   vertical-align: middle;
-  white-space: nowrap;
 }
 
 .sampled-group-summary td {
@@ -224,69 +354,28 @@ button.edit-btn:hover { background: none; text-decoration: underline; }
   transition: transform 0.15s;
 }
 
-.sampled-metric-table td.sampled-metric-name {
-  padding-left: 1rem;
+.sampled-metric-name {
+  padding-left: 1rem !important;
   padding-right: 0.75rem;
   color: #c9d1d9;
 }
 
-.sampled-metric-table td.sampled-metric-value {
+.sampled-metric-value {
   padding-right: 1.5rem;
   color: #f0883e;
 }
 
-.sampled-metric-table td.sampled-action-col { white-space: nowrap; }
-.sampled-metric-table td.sampled-type-col { padding-left: 0.5rem; }
-
-.sampled-group-edit-btn {
-  border: none;
-  background: none;
-  color: #388bfd;
-  padding: 2px 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.sampled-group-edit-btn:hover { text-decoration: underline; }
-
-.sampled-group-cancel-btn {
-  border: none;
-  background: none;
-  color: #f85149;
-  padding: 2px 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-}
-.sampled-group-cancel-btn:hover { opacity: 0.8; }
-
-.sampled-action-btn {
-  border: none;
-  background: none;
-  color: #388bfd;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-.sampled-action-btn:hover { text-decoration: underline; }
+.sampled-act-col { white-space: nowrap; }
 
 .sampled-type-btn {
   border: 1px solid #30363d;
   background: none;
   color: #8b949e;
-  padding: 1px 6px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
   cursor: pointer;
+  font-family: inherit;
   font-size: 0.8rem;
-  white-space: nowrap;
+  margin-right: 3px;
 }
 .sampled-type-btn:hover { border-color: #8b949e; color: #c9d1d9; }
-.sampled-type-btn.selected { border-color: #388bfd; color: #388bfd; }
-
-.sampled-cancel-btn {
-  border: none;
-  background: none;
-  color: #f85149;
-  padding: 2px 4px;
-  cursor: pointer;
-  font-size: 1rem;
-}
-.sampled-cancel-btn:hover { color: #ff7b72; }

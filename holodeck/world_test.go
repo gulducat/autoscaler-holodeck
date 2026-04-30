@@ -112,6 +112,50 @@ func TestWorld_SetReturnsChanged(t *testing.T) {
 	}
 }
 
+func TestWorld_SetPushesHistory(t *testing.T) {
+	w := newWorld("test")
+	w.Set(map[string]MetricRule{"cpu": {Type: "authored", Value: 0.5}})
+	w.Set(map[string]MetricRule{"cpu": {Type: "authored", Value: 0.8}})
+
+	st := w.State()
+	entry := st["cpu"]
+	if entry.Rule.Value != 0.8 {
+		t.Errorf("expected current value 0.8, got %v", entry.Rule.Value)
+	}
+	if len(entry.History) != 1 {
+		t.Fatalf("expected 1 history entry, got %d", len(entry.History))
+	}
+	if entry.History[0].Rule.Value != 0.5 {
+		t.Errorf("expected history value 0.5, got %v", entry.History[0].Rule.Value)
+	}
+}
+
+func TestWorld_SetOnePushesHistory(t *testing.T) {
+	w := newWorld("test")
+	w.SetOne("mem", MetricRule{Type: "authored", Value: 1.0})
+	w.SetOne("mem", MetricRule{Type: "authored", Value: 2.0})
+	w.SetOne("mem", MetricRule{Type: "authored", Value: 3.0})
+
+	st := w.State()
+	entry := st["mem"]
+	if entry.Rule.Value != 3.0 {
+		t.Errorf("expected current value 3.0, got %v", entry.Rule.Value)
+	}
+	if len(entry.History) != 2 {
+		t.Fatalf("expected 2 history entries, got %d", len(entry.History))
+	}
+}
+
+func TestWorld_ResetClearsHistory(t *testing.T) {
+	w := newWorld("test")
+	w.SetOne("cpu", MetricRule{Type: "authored", Value: 0.5})
+	w.SetOne("cpu", MetricRule{Type: "authored", Value: 0.8})
+	w.Reset()
+	if st := w.State(); len(st) != 0 {
+		t.Errorf("expected empty state after reset, got %v", st)
+	}
+}
+
 func TestWorldManager_DefaultWorldExists(t *testing.T) {
 	m := NewWorldManager(NewNomadTracker(), NewObserverClient("", noopLogger()))
 	if w := m.Get(DefaultWorldID); w == nil {

@@ -74,8 +74,8 @@ func TestHandleSetAndGetWorld(t *testing.T) {
 	rr = doRequest(t, srv, "GET", "/v1/worlds/default", "")
 	var resp worldStateResponse
 	json.NewDecoder(rr.Body).Decode(&resp)
-	if resp.Metrics["cpu"].Value != 0.42 {
-		t.Errorf("expected 0.42, got %v", resp.Metrics["cpu"].Value)
+	if resp.Metrics["cpu"].Rule.Value != 0.42 {
+		t.Errorf("expected 0.42, got %v", resp.Metrics["cpu"].Rule.Value)
 	}
 }
 

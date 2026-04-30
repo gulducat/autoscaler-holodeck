@@ -165,8 +165,8 @@ func (s *Server) handleScheduleMetric(w http.ResponseWriter, r *http.Request) {
 // --- helpers ---
 
 type worldStateResponse struct {
-	ID      string                `json:"id"`
-	Metrics map[string]MetricRule `json:"metrics"`
+	ID      string                 `json:"id"`
+	Metrics map[string]MetricEntry `json:"metrics"`
 }
 
 func worldState(w *World) worldStateResponse {

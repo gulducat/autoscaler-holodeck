@@ -1,7 +1,6 @@
 package holodeck
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -20,17 +19,27 @@ type ScheduleRequest struct {
 	DiminishingReturnsFactor float64 `json:"diminishing_returns_factor,omitempty"`
 }
 
-// runSchedule writes the metric rule n times, waiting IntervalSeconds between
-// each save. The first save is immediate. Stops early if ctx is cancelled.
+// runSchedule writes the metric rule Count times, waiting IntervalSeconds
+// before each save after the first. Each save pushes the previous value to
+// history via SetOne. Stops early if ctx is cancelled.
 func (s *Server) runSchedule(worldID string, req ScheduleRequest) {
 	for i := 0; i < req.Count; i++ {
+		if i > 0 {
+			select {
+			case <-s.ctx.Done():
+				return
+			case <-time.After(time.Duration(float64(time.Second) * req.IntervalSeconds)):
+			}
+		}
+
 		change := req.ChangeToValue
 		if req.Delta == "linear" {
 			change = req.StartValue
 		}
-		value := req.StartValue + (change * float64((i + 1)))
+		value := req.StartValue + (change * float64(i+1))
+
 		rule := MetricRule{
-			Type:                     "repeated",
+			Type:                     "scheduled",
 			Value:                    value,
 			Delta:                    req.Delta,
 			Count:                    req.Count,
@@ -38,20 +47,6 @@ func (s *Server) runSchedule(worldID string, req ScheduleRequest) {
 			Saturation:               req.Saturation,
 			DiminishingReturnsFactor: req.DiminishingReturnsFactor,
 		}
-		var staleModifier = i - 1
-		if i == 0 {
-			s.manager.SetOne(worldID, req.Name, rule)
-			staleModifier = 1
-		} else {
-			select {
-			case <-s.ctx.Done():
-				return
-			case <-time.After(time.Duration(float64(time.Second) * req.IntervalSeconds)):
-
-			}
-		}
-
-		s.manager.MakeRuleOrStale(worldID, req.Name, fmt.Sprintf("%s_%d", req.Name, staleModifier), rule)
-
+		s.manager.SetOne(worldID, req.Name, rule)
 	}
 }

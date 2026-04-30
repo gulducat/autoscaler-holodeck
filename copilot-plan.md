@@ -90,6 +90,8 @@ Phase 1 can be worked in parallel with Phase 0 since the contracts don't require
 **Additional holodeck features landed post-spec (not covered by a spec):**
 - **Metric sampling** (`holodeck/sampler.go`): startup ingestion of metrics from external sources (Nomad `/v1/metrics`, holodeck-apm endpoint). Exposed via `SAMPLE_METRICS` env var and the `make jobs-sample` target.
 - **Metric scheduling** (`holodeck/scheduler.go`): POST-driven multi-step metric rule sequences (linear or static delta, configurable interval). Integrated into the Holodeck UI.
+- **Metric history** (`holodeck/world.go`): every rule change pushes the prior value to a per-metric history slice (cleared on world reset). Exposed in the world state API response as `history[]` on each metric entry.
+- **Inline-editable UI** (`holodeck/ui.html`): replaced single edit form with three always-visible inline tables (Authored, Capacity-Coupled, Scheduled). Per-row modifier toggle (⚙) and history toggle (↺N). New-metric row at bottom of each editable table. Schedule form has live value preview.
 
 ---
 
