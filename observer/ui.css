@@ -17,6 +17,38 @@ header {
 
 h1 { font-size: 1.2rem; color: #e6edf3; }
 
+/* Timeline section */
+#timeline-section {
+  margin-top: 1rem;
+}
+
+#chart-section > summary,
+#timeline-section > summary {
+  cursor: pointer;
+  color: #8b949e;
+  user-select: none;
+  list-style: none;
+  padding: 4px 0;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#chart-section > summary::-webkit-details-marker,
+#timeline-section > summary::-webkit-details-marker { display: none; }
+
+#chart-section > summary .caret,
+#timeline-section > summary .caret {
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+#chart-section[open] > summary .caret,
+#timeline-section[open] > summary .caret {
+  transform: rotate(90deg);
+}
+
 #run-badge {
   font-size: 0.85rem;
   background: #21262d;
@@ -24,6 +56,22 @@ h1 { font-size: 1.2rem; color: #e6edf3; }
   border-radius: 12px;
   padding: 2px 10px;
   color: #79c0ff;
+}
+
+#sort-toggle {
+  font-family: inherit;
+  font-size: 0.8rem;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 2px 10px;
+  color: #8b949e;
+  cursor: pointer;
+}
+
+#sort-toggle:hover {
+  border-color: #8b949e;
+  color: #c9d1d9;
 }
 
 #status {
@@ -136,3 +184,39 @@ tr.run-boundary td {
 .src-holodeck-apm   { color: #56d364; }
 .src-nodesim-target { color: #ffa657; }
 .src-nomad          { color: #8b949e; }
+
+/* Chart section */
+#chart-section {
+  margin-bottom: 1rem;
+}
+
+#chart-container {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+/* Hover detail row (between chart and timeline) */
+#hover-detail {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.2s ease, padding 0.2s ease;
+  padding: 0 8px;
+  background: #161b22;
+  border-left: 2px solid #30363d;
+  font-size: 11px;
+  color: #c9d1d9;
+}
+
+#hover-detail.visible {
+  max-height: 300px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+#hover-detail pre {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

@@ -12,32 +12,58 @@
     <span id="status">connecting…</span>
   </header>
 
-  <table>
-    <thead>
-      <tr>
-        <th>seq</th>
-        <th>run</th>
-        <th>ingested_at</th>
-        <th>source</th>
-        <th>kind</th>
-        <th>summary</th>
-        <th>payload</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+  <details id="chart-section" open>
+    <summary id="chart-toggle"><span class="caret">▶</span> Events</summary>
+    <div id="chart-container"></div>
+  </details>
+
+  <div id="hover-detail"><pre id="hover-detail-content"></pre></div>
+
+  <details id="timeline-section" open>
+    <summary id="timeline-toggle"><span class="caret">▶</span> Event Timeline <button id="sort-toggle">Sort: Recent</button></summary>
+    <table>
+      <thead>
+        <tr>
+          <th>seq</th>
+          <th>run</th>
+          <th>ingested_at</th>
+          <th>source</th>
+          <th>kind</th>
+          <th>summary</th>
+          <th>payload</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </details>
 
   <script>
-    const tbody = document.getElementById('tbody');
-    const runBadge = document.getElementById('run-badge');
-    const status = document.getElementById('status');
-    let since = 0;
+    // --- Table helpers ---
 
     function srcClass(source) {
       return 'src-' + source.replace(/[^a-z0-9]/g, '-');
     }
 
-    function appendEvent(e) {
+    function makeCollapsible(value) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      const caret = document.createElement('span');
+      caret.className = 'caret';
+      caret.textContent = '▶';
+      const preview = document.createElement('span');
+      preview.className = 'preview';
+      const raw = JSON.stringify(value);
+      preview.textContent = ' ' + (raw.length > 50 ? raw.slice(0, 50) + '…' : raw);
+      summary.appendChild(caret);
+      summary.appendChild(preview);
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(value, null, 2);
+      details.appendChild(summary);
+      details.appendChild(pre);
+      return details;
+    }
+
+    function makeEventRow(e) {
       const tr = document.createElement('tr');
       if (e.kind === 'world_reset') tr.className = 'run-boundary';
 
@@ -47,49 +73,189 @@
         tr.appendChild(td);
       });
 
-      const payloadTd = document.createElement('td');
       const summaryTd = document.createElement('td');
       summaryTd.className = 'summary';
-      if (e.summary != null) {
-        const summaryDetails = document.createElement('details');
-        const summarySummary = document.createElement('summary');
-        const summaryCaret = document.createElement('span');
-        summaryCaret.className = 'caret';
-        summaryCaret.textContent = '▶';
-        const summaryPreview = document.createElement('span');
-        summaryPreview.className = 'preview';
-        const summaryRaw = JSON.stringify(e.summary);
-        summaryPreview.textContent = ' ' + (summaryRaw.length > 50 ? summaryRaw.slice(0, 50) + '…' : summaryRaw);
-        summarySummary.appendChild(summaryCaret);
-        summarySummary.appendChild(summaryPreview);
-        const summaryPre = document.createElement('pre');
-        summaryPre.textContent = JSON.stringify(e.summary, null, 2);
-        summaryDetails.appendChild(summarySummary);
-        summaryDetails.appendChild(summaryPre);
-        summaryTd.appendChild(summaryDetails);
-      }
+      if (e.summary != null) summaryTd.appendChild(makeCollapsible(e.summary));
       tr.appendChild(summaryTd);
 
+      const payloadTd = document.createElement('td');
       payloadTd.className = 'payload';
-      const details = document.createElement('details');
-      const summary = document.createElement('summary');
-      const caret = document.createElement('span');
-      caret.className = 'caret';
-      caret.textContent = '▶';
-      const preview = document.createElement('span');
-      preview.className = 'preview';
-      const raw = JSON.stringify(e.payload);
-      preview.textContent = ' ' + (raw.length > 50 ? raw.slice(0, 50) + '…' : raw);
-      summary.appendChild(caret);
-      summary.appendChild(preview);
-      const pre = document.createElement('pre');
-      pre.textContent = JSON.stringify(e.payload, null, 2);
-      details.appendChild(summary);
-      details.appendChild(pre);
-      payloadTd.appendChild(details);
+      payloadTd.appendChild(makeCollapsible(e.payload));
       tr.appendChild(payloadTd);
 
-      tbody.appendChild(tr);
+      return tr;
+    }
+
+    // --- Chart ---
+
+    const chartContainer = document.getElementById('chart-container');
+    const hoverDetail = document.getElementById('hover-detail');
+    const hoverDetailContent = document.getElementById('hover-detail-content');
+    let hideTimer = null;
+    let chartEvents = [];
+    const kindColorMap = new Map();
+    const PALETTE = ['#79c0ff', '#56d364', '#ffa657', '#ff7b72', '#d2a8ff', '#e3b341', '#39d353', '#58a6ff'];
+
+    function kindColor(kind) {
+      if (!kindColorMap.has(kind)) {
+        kindColorMap.set(kind, PALETTE[kindColorMap.size % PALETTE.length]);
+      }
+      return kindColorMap.get(kind);
+    }
+
+    function showTooltip(e) {
+      clearTimeout(hideTimer);
+      const lines = [`kind:    ${e.kind}`, `sent_at: ${e.sent_at}`];
+      if (e.summary != null) lines.push('', JSON.stringify(e.summary, null, 2));
+      hoverDetailContent.textContent = lines.join('\n');
+      hoverDetail.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      hideTimer = setTimeout(() => hoverDetail.classList.remove('visible'), 400);
+    }
+
+    hoverDetail.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+    hoverDetail.addEventListener('mouseleave', () => hoverDetail.classList.remove('visible'));
+
+    function renderChart() {
+      chartContainer.innerHTML = '';
+      const timed = chartEvents.filter(e => e.sent_at);
+      if (!timed.length) return;
+
+      const NS = 'http://www.w3.org/2000/svg';
+      const ML = 224, MR = 20, MT = 12, MB = 28;
+      const ROW_H = 24, TICK_W = 3, TICK_H = 16;
+
+      const kinds = [...new Set(timed.map(e => e.kind))];
+      const times = timed.map(e => new Date(e.sent_at).getTime());
+      const minT = Math.min(...times);
+      const maxT = Math.max(...times);
+      const span = maxT - minT || 1000;
+
+      const W = chartContainer.clientWidth || 900;
+      const plotW = W - ML - MR;
+      const plotH = kinds.length * ROW_H;
+      const H = plotH + MT + MB;
+
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('width', W);
+      svg.setAttribute('height', H);
+
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform', `translate(${ML},${MT})`);
+
+      // Row backgrounds and Y-axis labels
+      const kindIndex = new Map(kinds.map((k, i) => [k, i]));
+      kinds.forEach((kind, i) => {
+        const bg = document.createElementNS(NS, 'rect');
+        bg.setAttribute('x', 0);
+        bg.setAttribute('y', i * ROW_H);
+        bg.setAttribute('width', plotW);
+        bg.setAttribute('height', ROW_H);
+        bg.setAttribute('fill', i % 2 === 0 ? '#161b22' : '#0f1117');
+        g.appendChild(bg);
+
+        const label = document.createElementNS(NS, 'text');
+        label.setAttribute('x', -8);
+        label.setAttribute('y', i * ROW_H + ROW_H / 2 + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('fill', kindColor(kind));
+        label.setAttribute('font-size', '11');
+        label.setAttribute('font-family', 'ui-monospace, monospace');
+        if (kind.length > 30) {
+          label.textContent = kind.slice(0, 29) + '…';
+        } else {
+          label.textContent = kind;
+        }
+        const title = document.createElementNS(NS, 'title');
+        title.textContent = kind;
+        label.appendChild(title);
+        g.appendChild(label);
+      });
+
+      // Event ticks — offset same-kind events that share the same rounded x pixel
+      const tickSlotCount = new Map();
+      const tickData = timed.map(e => {
+        const baseX = ((new Date(e.sent_at).getTime() - minT) / span) * plotW;
+        const key = `${e.kind}:${Math.round(baseX)}`;
+        const slot = tickSlotCount.get(key) || 0;
+        tickSlotCount.set(key, slot + 1);
+        return { e, x: baseX + slot * (TICK_W + 1) };
+      });
+
+      tickData.forEach(({ e, x }) => {
+        const i = kindIndex.get(e.kind);
+        const y = i * ROW_H + (ROW_H - TICK_H) / 2;
+
+        const tick = document.createElementNS(NS, 'rect');
+        tick.setAttribute('x', x - TICK_W / 2);
+        tick.setAttribute('y', y);
+        tick.setAttribute('width', TICK_W);
+        tick.setAttribute('height', TICK_H);
+        tick.setAttribute('fill', kindColor(e.kind));
+        tick.setAttribute('opacity', '0.75');
+        tick.style.cursor = 'pointer';
+        tick.addEventListener('mouseover', () => {
+          tick.setAttribute('opacity', '1');
+          tick.setAttribute('width', TICK_W + 2);
+          showTooltip(e);
+        });
+        tick.addEventListener('mouseout', () => {
+          tick.setAttribute('opacity', '0.75');
+          tick.setAttribute('width', TICK_W);
+          hideTooltip();
+        });
+        g.appendChild(tick);
+      });
+
+      // X-axis line and time labels
+      const xLine = document.createElementNS(NS, 'line');
+      xLine.setAttribute('x1', 0);   xLine.setAttribute('y1', plotH);
+      xLine.setAttribute('x2', plotW); xLine.setAttribute('y2', plotH);
+      xLine.setAttribute('stroke', '#30363d');
+      g.appendChild(xLine);
+
+      [[minT, 'start', 0], [maxT, 'end', plotW]].forEach(([t, anchor, x]) => {
+        const label = document.createElementNS(NS, 'text');
+        label.setAttribute('x', x);
+        label.setAttribute('y', plotH + 16);
+        label.setAttribute('text-anchor', anchor);
+        label.setAttribute('fill', '#484f58');
+        label.setAttribute('font-size', '10');
+        label.setAttribute('font-family', 'ui-monospace, monospace');
+        label.textContent = new Date(t).toLocaleTimeString();
+        g.appendChild(label);
+      });
+
+      svg.appendChild(g);
+      chartContainer.appendChild(svg);
+    }
+
+    // --- Polling ---
+
+    const tbody = document.getElementById('tbody');
+    const runBadge = document.getElementById('run-badge');
+    const status = document.getElementById('status');
+    const sortToggle = document.getElementById('sort-toggle');
+    let since = 0;
+    let sortRecent = false;
+
+    sortToggle.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      sortRecent = !sortRecent;
+      sortToggle.textContent = sortRecent ? 'Sort: Chronological' : 'Sort: Recent';
+      Array.from(tbody.children).reverse().forEach(row => tbody.appendChild(row));
+    });
+
+    function appendEvent(e) {
+      if (e.kind === 'world_reset') chartEvents = [];
+      if (e.sent_at) chartEvents.push(e);
+      if (sortRecent) {
+        tbody.insertBefore(makeEventRow(e), tbody.firstChild);
+      } else {
+        tbody.appendChild(makeEventRow(e));
+      }
     }
 
     async function poll() {
@@ -103,6 +269,7 @@
           since = e.seq;
           appendEvent(e);
         }
+        renderChart();
       } catch (err) {
         status.textContent = `error: ${err.message}`;
       }
