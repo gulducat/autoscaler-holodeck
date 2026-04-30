@@ -44,6 +44,39 @@
       return 'src-' + source.replace(/[^a-z0-9]/g, '-');
     }
 
+    function buildJsonTree(value) {
+      const isArray = Array.isArray(value);
+      const entries = isArray ? value.map((v, i) => [String(i), v]) : Object.entries(value);
+      const div = document.createElement('div');
+      div.className = 'json-tree';
+
+      for (const [k, v] of entries) {
+        const keySpan = document.createElement('span');
+        keySpan.className = 'json-key';
+        keySpan.textContent = k + ': ';
+
+        if (v !== null && typeof v === 'object') {
+          const nested = document.createElement('details');
+          const nestedSummary = document.createElement('summary');
+          nestedSummary.appendChild(keySpan);
+          nestedSummary.appendChild(document.createTextNode(Array.isArray(v) ? '[…]' : '{…}'));
+          nested.appendChild(nestedSummary);
+          nested.appendChild(buildJsonTree(v));
+          div.appendChild(nested);
+        } else {
+          const row = document.createElement('div');
+          row.className = 'json-row';
+          const valSpan = document.createElement('span');
+          valSpan.className = 'json-' + (v === null ? 'null' : typeof v);
+          valSpan.textContent = JSON.stringify(v);
+          row.appendChild(keySpan);
+          row.appendChild(valSpan);
+          div.appendChild(row);
+        }
+      }
+      return div;
+    }
+
     function makeCollapsible(value) {
       const details = document.createElement('details');
       const summary = document.createElement('summary');
@@ -56,10 +89,14 @@
       preview.textContent = ' ' + (raw.length > 50 ? raw.slice(0, 50) + '…' : raw);
       summary.appendChild(caret);
       summary.appendChild(preview);
-      const pre = document.createElement('pre');
-      pre.textContent = JSON.stringify(value, null, 2);
       details.appendChild(summary);
-      details.appendChild(pre);
+      details.appendChild(
+        (value !== null && typeof value === 'object') ? buildJsonTree(value) : (() => {
+          const pre = document.createElement('pre');
+          pre.textContent = String(value);
+          return pre;
+        })()
+      );
       return details;
     }
 

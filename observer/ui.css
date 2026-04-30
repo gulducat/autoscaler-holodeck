@@ -113,24 +113,28 @@ td.summary {
   max-width: 30vw;
 }
 
-td.summary details dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 1px 12px;
-  margin-top: 4px;
+.json-tree {
+  padding-left: 1rem;
+  line-height: 1.7;
 }
 
-td.summary details dt {
-  color: #484f58;
+.json-row {
   white-space: nowrap;
 }
 
-td.summary details dd {
-  color: #c9d1d9;
-  word-break: break-all;
-  white-space: pre-wrap;
-  margin: 0;
+.json-tree details > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
 }
+
+.json-tree details > summary::-webkit-details-marker { display: none; }
+
+.json-key     { color: #79c0ff; }
+.json-string  { color: #c9d1d9; }
+.json-number  { color: #ffa657; }
+.json-boolean { color: #ff7b72; }
+.json-null    { color: #8b949e; }
 
 td.payload details summary,
 td.summary details summary {
