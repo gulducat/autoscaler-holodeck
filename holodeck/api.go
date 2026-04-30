@@ -31,6 +31,8 @@ func NewServer(manager *WorldManager) *Server {
 	s.mux.HandleFunc("POST /v1/world/reset", s.defaultWorld(s.handleResetWorld))
 	s.mux.HandleFunc("GET /v1/metrics", s.defaultWorld(s.handleQueryMetric))
 
+	s.mux.HandleFunc("GET /v1/sampled-metrics", s.handleGetSampledMetrics)
+
 	// UI.
 	s.mux.HandleFunc("GET /", s.handleUI)
 
@@ -118,6 +120,12 @@ func (s *Server) handleQueryMetric(w http.ResponseWriter, r *http.Request) {
 		"metric":     metric,
 		"value":      value,
 		"queried_at": queriedAt,
+	})
+}
+
+func (s *Server) handleGetSampledMetrics(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"metrics": s.manager.GetSampledMetrics(),
 	})
 }
 

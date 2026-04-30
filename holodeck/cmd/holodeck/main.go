@@ -32,6 +32,17 @@ func main() {
 	tracker := holodeck.NewNomadTracker()
 	observerClient := holodeck.NewObserverClient(observerAddr, logger.Named("observer"))
 	manager := holodeck.NewWorldManager(tracker, observerClient)
+
+	// Ingest any startup metric samples before the server begins serving.
+	if raw := os.Getenv("SAMPLE_METRICS"); raw != "" {
+		samples, err := holodeck.ParseSampleMetrics(raw)
+		if err != nil {
+			logger.Error("failed to parse SAMPLE_METRICS", "error", err)
+			os.Exit(1)
+		}
+		holodeck.IngestSampledMetrics(context.Background(), samples, manager, logger.Named("sampler"))
+	}
+
 	srv := holodeck.NewServer(manager)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

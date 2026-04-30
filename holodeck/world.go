@@ -86,6 +86,18 @@ func (w *World) Set(metrics map[string]MetricRule) []string {
 	return changed
 }
 
+// SetOne updates a single metric rule without replacing the full set.
+// Returns true if the rule was new or changed.
+func (w *World) SetOne(name string, rule MetricRule) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if existing, ok := w.metrics[name]; ok && existing == rule {
+		return false
+	}
+	w.metrics[name] = rule
+	return true
+}
+
 // Reset clears all metric rules.
 func (w *World) Reset() {
 	w.mu.Lock()
@@ -117,18 +129,21 @@ func (w *World) State() map[string]MetricRule {
 
 // WorldManager manages multiple named worlds.
 type WorldManager struct {
-	mu       sync.RWMutex
-	worlds   map[string]*World
-	tracker  *NomadTracker
-	observer *ObserverClient
+	mu             sync.RWMutex
+	worlds         map[string]*World
+	tracker        *NomadTracker
+	observer       *ObserverClient
+	sampledMu      sync.RWMutex
+	sampledMetrics map[string]SampledMetricEntry
 }
 
 // NewWorldManager creates a WorldManager with a pre-created default world.
 func NewWorldManager(tracker *NomadTracker, observer *ObserverClient) *WorldManager {
 	m := &WorldManager{
-		worlds:   make(map[string]*World),
-		tracker:  tracker,
-		observer: observer,
+		worlds:         make(map[string]*World),
+		tracker:        tracker,
+		observer:       observer,
+		sampledMetrics: make(map[string]SampledMetricEntry),
 	}
 	m.worlds[DefaultWorldID] = newWorld(DefaultWorldID)
 	return m
@@ -180,6 +195,19 @@ func (m *WorldManager) Set(id string, metrics map[string]MetricRule) *World {
 	return w
 }
 
+// SetOne upserts a single metric rule into a world, emitting a
+// metric_rule_change event to the Observer if the rule is new or changed.
+func (m *WorldManager) SetOne(id, name string, rule MetricRule) {
+	w := m.GetOrCreate(id)
+	if w.SetOne(name, rule) {
+		m.observer.Send("metric_rule_change", map[string]any{
+			"world":  id,
+			"metric": name,
+			"rule":   rule,
+		})
+	}
+}
+
 // Reset clears a world's metric rules and emits a world_reset event to the Observer.
 func (m *WorldManager) Reset(id string) *World {
 	w := m.GetOrCreate(id)
@@ -193,3 +221,21 @@ func (m *WorldManager) AllocCount() int64 { return m.tracker.AllocCount() }
 
 // NodeCount returns the current number of ready nodes tracked by Nomad.
 func (m *WorldManager) NodeCount() int64 { return m.tracker.NodeCount() }
+
+// StoreSampledMetric stores a metric entry obtained from a sampled source.
+func (m *WorldManager) StoreSampledMetric(name string, entry SampledMetricEntry) {
+	m.sampledMu.Lock()
+	defer m.sampledMu.Unlock()
+	m.sampledMetrics[name] = entry
+}
+
+// GetSampledMetrics returns a snapshot of all stored sampled metrics.
+func (m *WorldManager) GetSampledMetrics() map[string]SampledMetricEntry {
+	m.sampledMu.RLock()
+	defer m.sampledMu.RUnlock()
+	out := make(map[string]SampledMetricEntry, len(m.sampledMetrics))
+	for k, v := range m.sampledMetrics {
+		out[k] = v
+	}
+	return out
+}
