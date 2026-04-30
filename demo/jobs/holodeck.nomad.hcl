@@ -23,20 +23,25 @@ job "holodeck" {
 
     task "nodesim" {
       # autoscaler target plugin talks to nodesim
-      #lifecycle {
-      #  hook    = "prestart"
-      #  sidecar = true
-      #}
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
+      }
       driver = "docker"
       config {
         image = "holodeck:local"
-        args  = ["nodesim"]
+        args  = [
+          "nomad-nodesim",
+          "-config=/app/demo/nodesim.hcl",
+          "-server-addr=192.168.10.11:4647",
+        ]
         ports = ["nodesim"]
 
         privileged = true
         cgroupns   = "host"
       }
       env {
+        #NOMAD_ADDR          = "http://192.168.10.11:4646"
         NODESIM_GROUPS_ADDR = ":${NOMAD_PORT_nodesim}"
       }
       service {
@@ -126,15 +131,18 @@ job "holodeck" {
       driver = "docker"
       config {
         image = "holodeck:local"
-        args  = ["autoscaler"]
+        args  = [
+          "nomad-autoscaler",
+          "agent",
+          "-config=${NOMAD_TASK_DIR}/agent.hcl",
+        ]
       }
       identity {
         env = true
       }
       env {
         #NOMAD_ADDR    = "${NOMAD_UNIX_ADDR}"
-        NOMAD_ADDR              = "http://192.168.10.11:4646"
-        AUTOSCALER_AGENT_CONFIG = "${NOMAD_TASK_DIR}/agent.hcl" # ready by entrypoint
+        NOMAD_ADDR = "http://192.168.10.11:4646"
       }
       template {
         destination = "${NOMAD_TASK_DIR}/agent.hcl"

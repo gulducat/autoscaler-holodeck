@@ -2,22 +2,15 @@
 
 set -xeuo pipefail
 
-#APPDIR="$(realpath "$(dirname "${BASH_SOURCE[*]}")")"
-APPDIR="${APPDIR:-$PWD}"
-pushd "$APPDIR"
+cmd="$1"
+shift
 
-case $1 in
-  bash)
-    bash -i
+case $cmd in
+  bash|nomad-autoscaler|nomad-nodesim|observer|holodeck)
+    eval "$cmd $@"
     ;;
-  autoscaler)
-    nomad-autoscaler agent -config "${AUTOSCALER_AGENT_CONFIG:-./demo/autoscaler/agent.hcl}"
+  *)
+    echo "unknown cmd '$cmd'"
+    exit 1
     ;;
-  nodesim)
-    nomad-nodesim -config ./demo/nodesim.hcl
-    ;;
-  observer|holodeck)
-    eval "$1"
-    ;;
-  *) echo "unknown arg '$1'" ; exit 1 ;;
 esac

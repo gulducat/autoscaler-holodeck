@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -24,6 +26,13 @@ const (
 	configKeyGroup    = "node_group"
 	observerTimeout   = 3 * time.Second
 	scaleTimeout      = 15 * time.Second
+
+	// statusRetryMax and statusRetryDelay control how many times Status will
+	// retry on transient connection errors before returning an error. This
+	// prevents a startup race between the autoscaler and nodesim from
+	// permanently killing the policy handler.
+	statusRetryMax   = 5
+	statusRetryDelay = 3 * time.Second
 )
 
 // Ensure Plugin implements target.Target at compile time.
@@ -92,7 +101,24 @@ func (p *Plugin) Status(config map[string]string) (*sdk.TargetStatus, error) {
 	u := *p.nodesim
 	u.Path = "/v1/groups/" + group
 
-	resp, err := p.httpClient.Get(u.String())
+	var (
+		resp *http.Response
+		err  error
+	)
+	for attempt := 1; attempt <= statusRetryMax; attempt++ {
+		resp, err = p.httpClient.Get(u.String())
+		if err == nil {
+			break
+		}
+		if !isConnectionError(err) {
+			return nil, fmt.Errorf("nodesim get group: %w", err)
+		}
+		p.logger.Warn("nodesim not reachable, retrying",
+			"attempt", attempt, "max", statusRetryMax, "error", err)
+		if attempt < statusRetryMax {
+			time.Sleep(statusRetryDelay)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("nodesim get group: %w", err)
 	}
@@ -116,6 +142,20 @@ func (p *Plugin) Status(config map[string]string) (*sdk.TargetStatus, error) {
 		Ready: g.Ready,
 		Count: g.Nodes,
 	}, nil
+}
+
+// isConnectionError reports whether err is a transient network/connection
+// error (refused, timeout, DNS) as opposed to a protocol-level error.
+func isConnectionError(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return true
+	}
+	return false
 }
 
 // scaleRequest is the POST body for POST /v1/groups/{name}/scale.
