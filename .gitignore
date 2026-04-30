@@ -3,3 +3,6 @@ bin/
 
 # Go workspace sum file (generated)
 go.work.sum
+
+# nodesim repo
+nomad-nodesim/

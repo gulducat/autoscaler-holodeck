@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -21,6 +22,8 @@ const (
 	pluginName        = "holodeck-apm"
 	configKeyHolodeck = "holodeck_address"
 	configKeyObserver = "observer_address"
+	envKeyHolodeck    = "HOLODECK_ADDR"
+	envKeyObserver    = "OBSERVER_ADDR"
 	observerTimeout   = 3 * time.Second
 )
 
@@ -49,9 +52,9 @@ func (p *Plugin) PluginInfo() (*base.PluginInfo, error) {
 }
 
 func (p *Plugin) SetConfig(config map[string]string) error {
-	addr := strings.TrimRight(config[configKeyHolodeck], "/")
+	addr := strings.TrimRight(configOrEnv(config, configKeyHolodeck, envKeyHolodeck), "/")
 	if addr == "" {
-		return fmt.Errorf("%q config value cannot be empty", configKeyHolodeck)
+		return fmt.Errorf("%q config value cannot be empty (or set %s env var)", configKeyHolodeck, envKeyHolodeck)
 	}
 	hURL, err := url.ParseRequestURI(addr)
 	if err != nil || hURL.Scheme == "" || hURL.Host == "" {
@@ -59,7 +62,7 @@ func (p *Plugin) SetConfig(config map[string]string) error {
 	}
 	p.holodeck = hURL
 
-	if obs := strings.TrimRight(config[configKeyObserver], "/"); obs != "" {
+	if obs := strings.TrimRight(configOrEnv(config, configKeyObserver, envKeyObserver), "/"); obs != "" {
 		oURL, err := url.ParseRequestURI(obs)
 		if err != nil || oURL.Scheme == "" || oURL.Host == "" {
 			return fmt.Errorf("%q is not a valid URL: %s", configKeyObserver, obs)
@@ -68,6 +71,14 @@ func (p *Plugin) SetConfig(config map[string]string) error {
 	}
 
 	return nil
+}
+
+// configOrEnv returns os.Getenv(envVar) if set, otherwise config[key].
+func configOrEnv(config map[string]string, key, envVar string) string {
+	if v := os.Getenv(envVar); v != "" {
+		return v
+	}
+	return config[key]
 }
 
 // holodeckMetricResponse is the expected shape of GET /v1/metrics responses.
