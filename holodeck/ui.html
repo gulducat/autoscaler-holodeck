@@ -1,124 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Holodeck</title>
-  <link rel="stylesheet" href="/ui.css">
-</head>
-<body>
-  <header>
-    <h1>Holodeck</h1>
-    <span id="world-badge">world: default</span>
-    <span id="status">loading…</span>
-  </header>
 
-  <section id="metrics-section">
-    <h2>Metric Rules</h2>
-    <table id="metrics-table">
-      <thead>
-        <tr>
-          <th>name</th>
-          <th>type</th>
-          <th>value / formula</th>
-          <th>modifiers</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </section>
+  <head>
+    <meta charset="UTF-8">
+    <title>Holodeck</title>
+    <link rel="stylesheet" href="/ui.css">
+  </head>
 
-  <section id="edit-section">
-    <h2 id="form-title">Add Metric Rule</h2>
-    <form id="metric-form">
-      <label>Name <input type="text" id="f-name" required></label>
-      <label>Type
-        <select id="f-type">
-          <option value="authored">authored (static)</option>
-          <option value="capacity_coupled">capacity_coupled</option>
-        </select>
-      </label>
+  <body>
+    <header>
+      <h1>Holodeck</h1>
+      <span id="world-badge">world: default</span>
+      <span id="status">loading…</span>
+    </header>
 
-      <div id="authored-fields">
-        <label>Value <input type="number" step="any" id="f-value" value="0"></label>
+    <details id="metrics-section" class="section-collapsible" open>
+      <summary><span class="caret">▶</span> Metric Generation Rules</summary>
+      <table id="metrics-table">
+        <thead>
+          <tr>
+            <th>name</th>
+            <th>type</th>
+            <th>value / formula</th>
+            <th>modifiers</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </details>
+
+    <details id="edit-section" class="section-collapsible" open>
+      <summary><span class="caret">▶</span> <span id="form-title">Generate Metrics</span></summary>
+      <form id="metric-form">
+        <label>Name <input type="text" id="f-name" required></label>
+        <label>Type
+          <select id="f-type">
+            <option value="authored">authored (static)</option>
+            <option value="capacity_coupled">capacity_coupled</option>
+            <option value="repeating">repeating</option>
+          </select>
+        </label>
+
+        <div id="authored-fields">
+          <label>Value <input type="number" step="any" id="f-value" value="0"></label>
+        </div>
+
+        <div id="coupled-fields" hidden>
+          <label>Base <input type="number" step="any" id="f-base" value="0"></label>
+          <label>Alloc factor <input type="number" step="any" id="f-alloc-factor" value="0"></label>
+          <label>Node factor <input type="number" step="any" id="f-node-factor" value="0"></label>
+          <label>Min <input type="number" step="any" id="f-min" placeholder="(none)"></label>
+          <label>Max <input type="number" step="any" id="f-max" placeholder="(none)"></label>
+        </div>
+
+        <details>
+          <summary>Modifiers</summary>
+          <label>Lag (seconds) <input type="number" step="any" id="f-lag" value="0"></label>
+          <label>Saturation <input type="number" step="any" id="f-saturation" value="0" placeholder="0 = off"></label>
+          <label>Diminishing returns factor <input type="number" step="any" id="f-dr" value="0" placeholder="0 = off"></label>
+        </details>
+
+        <div class="form-actions">
+          <button type="submit">Save</button>
+          <button type="button" id="cancel-btn" hidden>Cancel</button>
+        </div>
+      </form>
+    </details>
+
+    <details id="sample-section" class="section-collapsible" open>
+      <summary><span class="caret">▶</span> Use Sample Metric Generation Rules</summary>
+      <div id="sampled-wrapper">
+      <table id="sampled-metric-table" class="sampled-metric-table">
+        <thead>
+          <tr>
+            <th>Metric Name</th>
+            <th>Sampled Value</th>
+            <th class="col-action"></th>
+            <th class="col-type">Type</th>
+          </tr>
+        </thead>
+      </table>
       </div>
+    </details>
 
-      <div id="coupled-fields" hidden>
-        <label>Base <input type="number" step="any" id="f-base" value="0"></label>
-        <label>Alloc factor <input type="number" step="any" id="f-alloc-factor" value="0"></label>
-        <label>Node factor <input type="number" step="any" id="f-node-factor" value="0"></label>
-        <label>Min <input type="number" step="any" id="f-min" placeholder="(none)"></label>
-        <label>Max <input type="number" step="any" id="f-max" placeholder="(none)"></label>
-      </div>
 
-      <details>
-        <summary>Modifiers</summary>
-        <label>Lag (seconds) <input type="number" step="any" id="f-lag" value="0"></label>
-        <label>Saturation <input type="number" step="any" id="f-saturation" value="0" placeholder="0 = off"></label>
-        <label>Diminishing returns factor <input type="number" step="any" id="f-dr" value="0" placeholder="0 = off"></label>
-      </details>
+    <section id="danger-section">
+      <button id="reset-btn" class="danger">Reset world</button>
+    </section>
 
-      <div class="form-actions">
-        <button type="submit">Save</button>
-        <button type="button" id="cancel-btn" hidden>Cancel</button>
-      </div>
-    </form>
-  </section>
+    <script>
+      const worldID = 'default';
+      const base = `/v1/worlds/${worldID}`;
 
-  <section id="danger-section">
-    <button id="reset-btn" class="danger">Reset world</button>
-  </section>
+      let currentMetrics = {};
+      let armedCount = 0;
+      function updateArmed(delta) {
+        armedCount += delta;
+        document.getElementById('sampled-metric-table').classList.toggle('has-armed', armedCount > 0);
+      }
 
-  <script>
-    const worldID = 'default';
-    const base = `/v1/worlds/${worldID}`;
+      const tbody = document.getElementById('tbody');
+      const status = document.getElementById('status');
+      const worldBadge = document.getElementById('world-badge');
+      const formTitle = document.getElementById('form-title');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const fType = document.getElementById('f-type');
 
-    let currentMetrics = {};
+      fType.addEventListener('change',updateTypeVisibility);
 
-    const tbody = document.getElementById('tbody');
-    const status = document.getElementById('status');
-    const worldBadge = document.getElementById('world-badge');
-    const formTitle = document.getElementById('form-title');
-    const cancelBtn = document.getElementById('cancel-btn');
-    const fType = document.getElementById('f-type');
+      function updateTypeVisibility() {
+        const cc = fType.value === 'capacity_coupled';
+        document.getElementById('coupled-fields').hidden = !cc;
+        document.getElementById('authored-fields').hidden = cc;
+      }
 
-    fType.addEventListener('change', updateTypeVisibility);
+      function formulaText(rule) {
+        if (rule.type === 'authored') return String(rule.value ?? 0);
+        const parts = [];
+        if (rule.base) parts.push(String(rule.base));
+        if (rule.alloc_factor) parts.push(`${rule.alloc_factor} × allocs`);
+        if (rule.node_factor) parts.push(`${rule.node_factor} × nodes`);
+        const expr = parts.length ? parts.join(' + ') : '0';
+        const bounds = [];
+        if (rule.min != null) bounds.push(`min ${rule.min}`);
+        if (rule.max != null) bounds.push(`max ${rule.max}`);
+        return expr + (bounds.length ? ` [${bounds.join(', ')}]` : '');
+      }
 
-    function updateTypeVisibility() {
-      const cc = fType.value === 'capacity_coupled';
-      document.getElementById('coupled-fields').hidden = !cc;
-      document.getElementById('authored-fields').hidden = cc;
-    }
+      function modifierText(rule) {
+        const m = [];
+        if (rule.lag_seconds) m.push(`lag ${rule.lag_seconds}s`);
+        if (rule.saturation) m.push(`sat ${rule.saturation}`);
+        if (rule.diminishing_returns_factor) m.push(`dr ${rule.diminishing_returns_factor}`);
+        return m.join(', ');
+      }
 
-    function formulaText(rule) {
-      if (rule.type === 'authored') return String(rule.value ?? 0);
-      const parts = [];
-      if (rule.base) parts.push(String(rule.base));
-      if (rule.alloc_factor) parts.push(`${rule.alloc_factor} × allocs`);
-      if (rule.node_factor) parts.push(`${rule.node_factor} × nodes`);
-      const expr = parts.length ? parts.join(' + ') : '0';
-      const bounds = [];
-      if (rule.min != null) bounds.push(`min ${rule.min}`);
-      if (rule.max != null) bounds.push(`max ${rule.max}`);
-      return expr + (bounds.length ? ` [${bounds.join(', ')}]` : '');
-    }
-
-    function modifierText(rule) {
-      const m = [];
-      if (rule.lag_seconds) m.push(`lag ${rule.lag_seconds}s`);
-      if (rule.saturation) m.push(`sat ${rule.saturation}`);
-      if (rule.diminishing_returns_factor) m.push(`dr ${rule.diminishing_returns_factor}`);
-      return m.join(', ');
-    }
-
-    function renderMetrics(metrics) {
-      currentMetrics = metrics;
-      tbody.innerHTML = '';
-      const names = Object.keys(metrics).sort();
-      for (const name of names) {
-        const rule = metrics[name];
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
+      function renderMetrics(metrics) {
+        currentMetrics = metrics;
+        tbody.innerHTML = '';
+        const names = Object.keys(metrics).sort();
+        for (const name of names) {
+          const rule = metrics[name];
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
           <td>${name}</td>
           <td><span class="type-${rule.type}">${rule.type}</span></td>
           <td class="formula">${formulaText(rule)}</td>
@@ -127,130 +152,314 @@
             <button class="edit-btn" data-name="${name}">edit</button>
             <button class="delete-btn danger-small" data-name="${name}">✕</button>
           </td>`;
-        tbody.appendChild(tr);
+          tbody.appendChild(tr);
+        }
+        tbody.querySelectorAll('.edit-btn').forEach(btn =>
+          btn.addEventListener('click',() => loadEdit(btn.dataset.name)));
+        tbody.querySelectorAll('.delete-btn').forEach(btn =>
+          btn.addEventListener('click',() => deleteMetric(btn.dataset.name)));
       }
-      tbody.querySelectorAll('.edit-btn').forEach(btn =>
-        btn.addEventListener('click', () => loadEdit(btn.dataset.name)));
-      tbody.querySelectorAll('.delete-btn').forEach(btn =>
-        btn.addEventListener('click', () => deleteMetric(btn.dataset.name)));
-    }
 
-    async function loadWorld() {
-      try {
-        const res = await fetch(base);
+      async function loadWorld() {
+        try {
+          const res = await fetch(base);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          worldBadge.textContent = `world: ${data.id}`;
+          renderMetrics(data.metrics || {});
+          status.textContent = `updated ${new Date().toLocaleTimeString()}`;
+        } catch (err) {
+          status.textContent = `error: ${err.message}`;
+        }
+      }
+
+      async function saveWorld(metrics) {
+        const res = await fetch(base,{
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ metrics }),
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        worldBadge.textContent = `world: ${data.id}`;
-        renderMetrics(data.metrics || {});
-        status.textContent = `updated ${new Date().toLocaleTimeString()}`;
-      } catch (err) {
-        status.textContent = `error: ${err.message}`;
+        return res.json();
       }
-    }
 
-    async function saveWorld(metrics) {
-      const res = await fetch(base, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({metrics}),
+      function loadEdit(name) {
+        const rule = currentMetrics[name];
+        document.getElementById('f-name').value = name;
+        document.getElementById('f-name').readOnly = true;
+        fType.value = rule.type || 'authored';
+        document.getElementById('f-value').value = rule.value ?? 0;
+        document.getElementById('f-base').value = rule.base ?? 0;
+        document.getElementById('f-alloc-factor').value = rule.alloc_factor ?? 0;
+        document.getElementById('f-node-factor').value = rule.node_factor ?? 0;
+        document.getElementById('f-min').value = rule.min ?? '';
+        document.getElementById('f-max').value = rule.max ?? '';
+        document.getElementById('f-lag').value = rule.lag_seconds ?? 0;
+        document.getElementById('f-saturation').value = rule.saturation ?? 0;
+        document.getElementById('f-dr').value = rule.diminishing_returns_factor ?? 0;
+        formTitle.textContent = `Edit: ${name}`;
+        cancelBtn.hidden = false;
+        updateTypeVisibility();
+      }
+
+      function clearForm() {
+        document.getElementById('metric-form').reset();
+        document.getElementById('f-name').readOnly = false;
+        formTitle.textContent = 'Generate Metrics';
+        cancelBtn.hidden = true;
+        fType.value = 'authored';
+        updateTypeVisibility();
+      }
+
+      cancelBtn.addEventListener('click',clearForm);
+
+      document.getElementById('metric-form').addEventListener('submit',async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('f-name').value.trim();
+        if (!name) return;
+
+        const type = fType.value;
+        const rule = { type };
+
+        if (type === 'authored') {
+          rule.value = parseFloat(document.getElementById('f-value').value) || 0;
+        } else {
+          rule.base = parseFloat(document.getElementById('f-base').value) || 0;
+          rule.alloc_factor = parseFloat(document.getElementById('f-alloc-factor').value) || 0;
+          rule.node_factor = parseFloat(document.getElementById('f-node-factor').value) || 0;
+          const min = document.getElementById('f-min').value;
+          const max = document.getElementById('f-max').value;
+          if (min !== '') rule.min = parseFloat(min);
+          if (max !== '') rule.max = parseFloat(max);
+        }
+
+        const lag = parseFloat(document.getElementById('f-lag').value);
+        const sat = parseFloat(document.getElementById('f-saturation').value);
+        const dr = parseFloat(document.getElementById('f-dr').value);
+        if (lag) rule.lag_seconds = lag;
+        if (sat) rule.saturation = sat;
+        if (dr) rule.diminishing_returns_factor = dr;
+
+        try {
+          const updated = { ...currentMetrics,[name]: rule };
+          const data = await saveWorld(updated);
+          renderMetrics(data.metrics || {});
+          status.textContent = `saved ${new Date().toLocaleTimeString()}`;
+          clearForm();
+        } catch (err) {
+          status.textContent = `save error: ${err.message}`;
+        }
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    }
 
-    function loadEdit(name) {
-      const rule = currentMetrics[name];
-      document.getElementById('f-name').value = name;
-      document.getElementById('f-name').readOnly = true;
-      fType.value = rule.type || 'authored';
-      document.getElementById('f-value').value = rule.value ?? 0;
-      document.getElementById('f-base').value = rule.base ?? 0;
-      document.getElementById('f-alloc-factor').value = rule.alloc_factor ?? 0;
-      document.getElementById('f-node-factor').value = rule.node_factor ?? 0;
-      document.getElementById('f-min').value = rule.min ?? '';
-      document.getElementById('f-max').value = rule.max ?? '';
-      document.getElementById('f-lag').value = rule.lag_seconds ?? 0;
-      document.getElementById('f-saturation').value = rule.saturation ?? 0;
-      document.getElementById('f-dr').value = rule.diminishing_returns_factor ?? 0;
-      formTitle.textContent = `Edit: ${name}`;
-      cancelBtn.hidden = false;
-      updateTypeVisibility();
-    }
-
-    function clearForm() {
-      document.getElementById('metric-form').reset();
-      document.getElementById('f-name').readOnly = false;
-      formTitle.textContent = 'Add Metric Rule';
-      cancelBtn.hidden = true;
-      fType.value = 'authored';
-      updateTypeVisibility();
-    }
-
-    cancelBtn.addEventListener('click', clearForm);
-
-    document.getElementById('metric-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('f-name').value.trim();
-      if (!name) return;
-
-      const type = fType.value;
-      const rule = {type};
-
-      if (type === 'authored') {
-        rule.value = parseFloat(document.getElementById('f-value').value) || 0;
-      } else {
-        rule.base = parseFloat(document.getElementById('f-base').value) || 0;
-        rule.alloc_factor = parseFloat(document.getElementById('f-alloc-factor').value) || 0;
-        rule.node_factor = parseFloat(document.getElementById('f-node-factor').value) || 0;
-        const min = document.getElementById('f-min').value;
-        const max = document.getElementById('f-max').value;
-        if (min !== '') rule.min = parseFloat(min);
-        if (max !== '') rule.max = parseFloat(max);
+      async function deleteMetric(name) {
+        if (!confirm(`Delete metric "${name}"?`)) return;
+        const updated = { ...currentMetrics };
+        delete updated[name];
+        try {
+          const data = await saveWorld(updated);
+          renderMetrics(data.metrics || {});
+          status.textContent = `deleted ${name}`;
+        } catch (err) {
+          status.textContent = `delete error: ${err.message}`;
+        }
       }
 
-      const lag = parseFloat(document.getElementById('f-lag').value);
-      const sat = parseFloat(document.getElementById('f-saturation').value);
-      const dr = parseFloat(document.getElementById('f-dr').value);
-      if (lag) rule.lag_seconds = lag;
-      if (sat) rule.saturation = sat;
-      if (dr) rule.diminishing_returns_factor = dr;
+      document.getElementById('reset-btn').addEventListener('click',async () => {
+        if (!confirm(`Reset world "${worldID}"? This clears all metric rules and starts a new run.`)) return;
+        try {
+          await fetch(`${base}/reset`,{ method: 'POST' });
+          await loadWorld();
+          status.textContent = `world reset`;
+        } catch (err) {
+          status.textContent = `reset error: ${err.message}`;
+        }
+      });
 
-      try {
-        const updated = {...currentMetrics, [name]: rule};
-        const data = await saveWorld(updated);
-        renderMetrics(data.metrics || {});
-        status.textContent = `saved ${new Date().toLocaleTimeString()}`;
-        clearForm();
-      } catch (err) {
-        status.textContent = `save error: ${err.message}`;
+      function groupByPrefix(metrics) {
+        const groups = {};
+        for (const [name, entry] of Object.entries(metrics)) {
+          const parts = name.split('.');
+          const key = parts.slice(0, 3).join('.');
+          if (!groups[key]) groups[key] = [];
+          groups[key].push({ name, entry });
+        }
+        return groups;
       }
-    });
 
-    async function deleteMetric(name) {
-      if (!confirm(`Delete metric "${name}"?`)) return;
-      const updated = {...currentMetrics};
-      delete updated[name];
-      try {
-        const data = await saveWorld(updated);
-        renderMetrics(data.metrics || {});
-        status.textContent = `deleted ${name}`;
-      } catch (err) {
-        status.textContent = `delete error: ${err.message}`;
+      function renderSampledMetrics(metrics) {
+        const table = document.getElementById('sampled-metric-table');
+        table.querySelectorAll('tbody').forEach(b => b.remove());
+
+        const groups = groupByPrefix(metrics);
+        const groupKeys = Object.keys(groups).sort();
+        if (groupKeys.length === 0) {
+          const tb = document.createElement('tbody');
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          td.textContent = 'No sampled metrics available.';
+          tr.appendChild(td); tb.appendChild(tr); table.appendChild(tb);
+          return;
+        }
+
+        for (const key of groupKeys) {
+          const items = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+          const tb = document.createElement('tbody');
+          tb.className = 'sampled-group';
+
+          // Group summary row
+          const summaryRow = document.createElement('tr');
+          summaryRow.className = 'sampled-group-summary';
+          const summaryTd = document.createElement('td');
+          summaryTd.colSpan = 4;
+          const caret = document.createElement('span');
+          caret.className = 'caret';
+          caret.textContent = '▶';
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = key;
+          const groupEditBtn = document.createElement('button');
+          groupEditBtn.className = 'sampled-group-edit-btn';
+          groupEditBtn.textContent = 'edit';
+          const groupCancelBtn = document.createElement('button');
+          groupCancelBtn.className = 'sampled-group-cancel-btn';
+          groupCancelBtn.textContent = '✕';
+          groupCancelBtn.hidden = true;
+          summaryTd.append(caret, nameSpan, groupEditBtn, groupCancelBtn);
+          summaryRow.appendChild(summaryTd);
+          tb.appendChild(summaryRow);
+
+          let groupOpen = false;
+          let groupArmed = false;
+
+          function setOpen(open) {
+            groupOpen = open;
+            caret.style.transform = open ? 'rotate(90deg)' : '';
+            metricRows.forEach(r => r.hidden = !open);
+          }
+
+          function armGroup() {
+            groupArmed = true;
+            groupEditBtn.hidden = true;
+            groupCancelBtn.hidden = false;
+            updateArmed(+1);
+            setOpen(true);
+          }
+
+          function disarmGroup() {
+            groupArmed = false;
+            groupEditBtn.hidden = false;
+            groupCancelBtn.hidden = true;
+            updateArmed(-1);
+            clearForm();
+          }
+
+          summaryRow.addEventListener('click', () => setOpen(!groupOpen));
+          groupEditBtn.addEventListener('click', e => { e.stopPropagation(); armGroup(); });
+          groupCancelBtn.addEventListener('click', e => { e.stopPropagation(); disarmGroup(); });
+
+          // Metric rows
+          const metricRows = [];
+          for (const { name, entry } of items) {
+            const tr = document.createElement('tr');
+            tr.className = 'sampled-metric-row';
+            tr.hidden = true;
+
+            const nameTd = document.createElement('td');
+            nameTd.className = 'sampled-metric-name';
+            nameTd.textContent = name;
+
+            const valueTd = document.createElement('td');
+            valueTd.className = 'sampled-metric-value';
+            valueTd.textContent = entry.value;
+
+            const actionTd = document.createElement('td');
+            actionTd.className = 'sampled-action-col';
+            const useSampleBtn = document.createElement('button');
+            useSampleBtn.className = 'sampled-action-btn';
+            useSampleBtn.textContent = 'use sample';
+            const rowCancelBtn = document.createElement('button');
+            rowCancelBtn.className = 'sampled-cancel-btn';
+            rowCancelBtn.textContent = '✕';
+            rowCancelBtn.addEventListener('click', () => clearForm());
+            actionTd.append(useSampleBtn, rowCancelBtn);
+
+            const typeTd = document.createElement('td');
+            typeTd.className = 'sampled-type-col';
+            const typeNames = ['authored', 'capacity_coupled', 'repeating'];
+            let selectedType = 'authored';
+            const typeBtns = typeNames.map(t => {
+              const btn = document.createElement('button');
+              btn.className = 'sampled-type-btn' + (t === 'authored' ? ' selected' : '');
+              btn.textContent = t;
+              btn.addEventListener('click', () => {
+                typeBtns.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedType = t;
+                document.getElementById('f-name').value = name;
+                document.getElementById('f-name').readOnly = false;
+                fType.value = t;
+                document.getElementById('f-value').value = entry.value;
+                formTitle.textContent = `Add: ${name}`;
+                cancelBtn.hidden = false;
+                updateTypeVisibility();
+                document.getElementById('edit-section').open = true;
+              });
+              return btn;
+            });
+            typeBtns.forEach(b => typeTd.appendChild(b));
+
+            useSampleBtn.addEventListener('click', async () => {
+              if (selectedType === 'authored') {
+                try {
+                  const updated = { ...currentMetrics, [name]: { type: 'authored', value: entry.value } };
+                  const data = await saveWorld(updated);
+                  renderMetrics(data.metrics || {});
+                  status.textContent = `added ${name}`;
+                } catch (err) {
+                  status.textContent = `error: ${err.message}`;
+                }
+              } else {
+                document.getElementById('f-name').value = name;
+                document.getElementById('f-name').readOnly = false;
+                fType.value = selectedType;
+                document.getElementById('f-value').value = entry.value;
+                formTitle.textContent = `Add: ${name}`;
+                cancelBtn.hidden = false;
+                updateTypeVisibility();
+                document.getElementById('edit-section').open = true;
+              }
+            });
+
+            tr.append(nameTd, valueTd, actionTd, typeTd);
+            metricRows.push(tr);
+            tb.appendChild(tr);
+          }
+
+          table.appendChild(tb);
+        }
       }
-    }
 
-    document.getElementById('reset-btn').addEventListener('click', async () => {
-      if (!confirm(`Reset world "${worldID}"? This clears all metric rules and starts a new run.`)) return;
-      try {
-        await fetch(`${base}/reset`, {method: 'POST'});
-        await loadWorld();
-        status.textContent = `world reset`;
-      } catch (err) {
-        status.textContent = `reset error: ${err.message}`;
+      async function loadSampledMetrics() {
+        try {
+          const res = await fetch('/v1/sampled-metrics');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          renderSampledMetrics(data.metrics || {});
+        } catch (err) {
+          const table = document.getElementById('sampled-metric-table');
+          table.querySelectorAll('tbody').forEach(b => b.remove());
+          const tb = document.createElement('tbody');
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          td.textContent = `error: ${err.message}`;
+          tr.appendChild(td); tb.appendChild(tr); table.appendChild(tb);
+        }
       }
-    });
 
-    loadWorld();
-  </script>
-</body>
+      loadWorld();
+      loadSampledMetrics();
+    </script>
+  </body>
+
 </html>
