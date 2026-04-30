@@ -82,10 +82,14 @@ Phase 1 can be worked in parallel with Phase 0 since the contracts don't require
 |---|---|---|---|
 | [`specs/holodeck.md`](./specs/holodeck.md) | this repo | metric physics engine + HTTP API + minimal UI | ✅ complete |
 | [`specs/observer.md`](./specs/observer.md) | this repo | event sink, ordering, read-only UI | ✅ complete |
-| [`specs/holodeck-apm.md`](./specs/holodeck-apm.md) | this repo | autoscaler APM plugin | 🔲 not started |
+| [`specs/holodeck-apm.md`](./specs/holodeck-apm.md) | this repo | autoscaler APM plugin | ✅ complete |
 | [`specs/nodesim-target.md`](./specs/nodesim-target.md) | this repo | autoscaler target plugin for node groups | ✅ complete |
 | [`specs/nodesim-asg.md`](./specs/nodesim-asg.md) | `hashicorp/nomad-nodesim` | node group concept + HTTP API extension | ✅ complete (feat/node-groups, PR pending) |
 | [`specs/nomad-jobs.md`](./specs/nomad-jobs.md) | this repo | Nomad job files to run the full system | 🟡 in progress — holodeck + observer job done; autoscaler + nodesim pending |
+
+**Additional holodeck features landed post-spec (not covered by a spec):**
+- **Metric sampling** (`holodeck/sampler.go`): startup ingestion of metrics from external sources (Nomad `/v1/metrics`, holodeck-apm endpoint). Exposed via `SAMPLE_METRICS` env var and the `make jobs-sample` target.
+- **Metric scheduling** (`holodeck/scheduler.go`): POST-driven multi-step metric rule sequences (linear or static delta, configurable interval). Integrated into the Holodeck UI.
 
 ---
 

@@ -7,12 +7,12 @@
 
 scaling "my-group" {
   enabled = true
-  min     = 1
+  min     = 0
   max     = 5
 
   policy {
-    cooldown            = "1m"
-    evaluation_interval = "30s"
+    cooldown            = "30s"
+    evaluation_interval = "10s"
 
     check "cpu_utilization" {
       source = "holodeck-apm"
