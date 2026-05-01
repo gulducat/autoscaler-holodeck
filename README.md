@@ -1,21 +1,33 @@
 # Nomad Autoscaler Holodeck
 
-A false reality to exercise core [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)
+You control a false reality to play with core
+[nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)
 functionality.
 
-## Local Testing
+## Demo
 
-Run all unit tests across every module:
+Build the docker container:
 
-```sh
-make test
+```
+make docker
 ```
 
-Launch the Observer UI with mock fixture data for visual inspection in a browser:
+Run Nomad:
 
-```sh
-make visual
+```
+make nomad
 ```
 
-The visual test starts a local HTTP server, opens the page automatically, and exits.
+In another shell, setup Nomad and run the job:
+
+```
+make job
+```
+
+Set env vars to use CLI / web UI
+
+```
+eval $(make env)
+nomad ui -authenticate
+```
 

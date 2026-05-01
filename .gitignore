@@ -4,5 +4,8 @@ bin/
 # Go workspace sum file (generated)
 go.work.sum
 
+# nomad agent data
+.nomad-data/
+
 # nodesim repo
 nomad-nodesim/

@@ -1,5 +1,4 @@
-MODULES := $(shell find * -name 'go.mod' -exec dirname {} +)
-MY_IP ?= 192.168.10.11
+MODULES := holodeck observer plugins/holodeck-apm plugins/nodesim-target
 
 .PHONY: default docker build test lint tidy clean visual
 
@@ -21,7 +20,7 @@ visual:
 # Build
 
 BINDIR := $(CURDIR)/bin
-BINARIES := $(addprefix bin/,$(MODULES))
+BINARIES := bin/nomad-nodesim $(addprefix bin/,$(MODULES))
 
 docker:
 	docker build -t holodeck:local .
@@ -56,15 +55,33 @@ bin/%: bin
 
 # Demo
 
-.PHONY: nomad autoscaler job stop policy autoscaler
+.PHONY: env nomad nomad-status acl-bootstrap autoscaler job stop policy autoscaler
+
+export NOMAD_ADDR ?= http://$(shell nomad node status -self -json 2>&1 | jq -r .HTTPAddr 2>/dev/null || echo 127.0.0.1:4646)
+export NOMAD_TOKEN ?= 00000000-0000-0000-0000-000000000000
+
+env:
+	@echo export NOMAD_ADDR="$(NOMAD_ADDR)"
+	@echo export NOMAD_TOKEN="$(NOMAD_TOKEN)"
 
 nomad:
+	sudo nomad agent \
+	  -config ./demo/nomad.hcl \
+	  -data-dir $(PWD)/.nomad-data
+
+nomad-status:
 	nomad node status
 
-autoscaler: nomad
+acl-bootstrap:  
+acl-bootstrap:
+	@if nomad node status 2>&1 | grep -q 403 ; then \
+	  nomad acl bootstrap - <<< $(NOMAD_TOKEN); \
+	fi
+
+autoscaler: nomad-status
 	nomad-autoscaler agent -config demo/autoscaler/agent.hcl
 
-job-policy: nomad
+job-policy: acl-bootstrap nomad-status
 	nomad acl policy apply \
 		-description="Read access for holodeck and observer tasks" \
 		-job=holodeck \
@@ -72,16 +89,17 @@ job-policy: nomad
 		holodeck-tasks \
 		demo/jobs/holodeck-policy.hcl
 
-job: nomad job-policy
+job: job-policy
 	nomad job run \
-	  -var="nomad_addr=http://$(MY_IP):4646" \
-	  -var="sample_urls=nomad_metrics:http://$(MY_IP):4646/v1/metrics" \
+	  -var="nomad_addr=http://$(NOMAD_ADDR)" \
+	  -var="sample_urls=nomad_metrics:http://$(NOMAD_ADDR)/v1/metrics" \
 	  demo/jobs/holodeck.nomad.hcl
 
 stop:
 	nomad job stop holodeck
 
 clean:
-	$(MAKE) stop || true
+	nomad job stop holodeck || true
+	nomad acl policy delete holodeck-tasks || true
 	rm -rf bin/
 
