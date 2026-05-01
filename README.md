@@ -22,7 +22,7 @@ Run Nomad:
 make nomad
 ```
 
-In another shell, setup Nomad and run the job:
+In another shell run the job and required setup:
 
 ```
 make job

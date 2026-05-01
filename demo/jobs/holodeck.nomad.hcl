@@ -2,6 +2,9 @@ variable "nomad_addr" {
   #default = "${NOMAD_UNIX_ADDR}" # TODO: make this work everywhere...
 }
 
+variable "nomad_host_addr" {
+  default = "http://127.0.0.1"
+}
 //sample_urls format is '<metric_type>:<url>:<metric_type>:<url>'."
 //possible metric types include 'holodeck_apm', 'nomad', and 'prometheus' though the last is not implemented"
 variable "sample_urls" {
@@ -32,7 +35,7 @@ job "holodeck" {
         args  = [
           "nomad-nodesim",
           "-config=/app/demo/nodesim.hcl",
-          "-server-addr=192.168.10.11:4647",
+          "-server-addr=${NOMAD_HOST_ADDR}:4647",
         ]
         ports = ["nodesim"]
 
@@ -40,6 +43,7 @@ job "holodeck" {
         cgroupns   = "host"
       }
       env {
+        NOMAD_HOST_ADDR          = var.nomad_host_addr
         NODESIM_GROUPS_ADDR = ":${NOMAD_PORT_nodesim}"
       }
       service {

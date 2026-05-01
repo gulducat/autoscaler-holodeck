@@ -78,7 +78,7 @@ nomad-status:
 acl-bootstrap:  
 acl-bootstrap:
 	@if nomad node status 2>&1 | grep -q 403 ; then \
-	  nomad acl bootstrap - <<< $(NOMAD_TOKEN); \
+	  echo "${NOMAD_TOKEN}" | nomad acl bootstrap - ;\
 	fi
 
 autoscaler: nomad-status
