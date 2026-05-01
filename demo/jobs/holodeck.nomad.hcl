@@ -1,6 +1,6 @@
-variable "bin_dir" {
-  type        = string
-  description = "Absolute path to the directory containing compiled binaries (e.g. /home/user/code/gulducat/autoscaler-holodeck/bin)"
+variable "nomad_addr" {
+  default = "http://192.168.10.11:4646"
+  #default = "${NOMAD_UNIX_ADDR}"
 }
 
 //sample_urls format is '<metric_type>:<url>:<metric_type>:<url>'."
@@ -73,7 +73,7 @@ job "holodeck" {
 
       env {
         OBSERVER_ADDR = ":${NOMAD_PORT_observer}"
-        NOMAD_ADDR    = "${NOMAD_UNIX_ADDR}"
+        NOMAD_ADDR    = var.nomad_addr
       }
 
       identity {
@@ -106,7 +106,7 @@ job "holodeck" {
         SAMPLE_METRICS = var.sample_urls
         HOLODECK_ADDR  = ":${NOMAD_PORT_holodeck}"
         OBSERVER_ADDR  = "http://${NOMAD_ADDR_observer}"
-        NOMAD_ADDR     = "${NOMAD_UNIX_ADDR}"
+        NOMAD_ADDR     = var.nomad_addr
       }
 
       identity {
@@ -141,8 +141,7 @@ job "holodeck" {
         env = true
       }
       env {
-        #NOMAD_ADDR    = "${NOMAD_UNIX_ADDR}"
-        NOMAD_ADDR = "http://192.168.10.11:4646"
+        NOMAD_ADDR = var.nomad_addr
       }
       template {
         destination = "${NOMAD_TASK_DIR}/agent.hcl"

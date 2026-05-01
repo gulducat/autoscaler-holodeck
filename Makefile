@@ -1,4 +1,5 @@
 MODULES := $(shell find * -name 'go.mod' -exec dirname {} +)
+MY_IP ?= 192.168.10.11
 
 .PHONY: default docker build test lint tidy clean visual
 
@@ -55,7 +56,7 @@ bin/%: bin
 
 # Demo
 
-.PHONY: nomad autoscaler jobs stop policy autoscaler
+.PHONY: nomad autoscaler job stop policy autoscaler
 
 nomad:
 	nomad node status
@@ -71,14 +72,14 @@ job-policy: nomad
 		holodeck-tasks \
 		demo/jobs/holodeck-policy.hcl
 
-jobs: nomad
-	nomad job run -var="bin_dir=$(CURDIR)/bin" demo/jobs/holodeck.nomad.hcl
-
-jobs-sample: nomad
-	nomad job run -var="bin_dir=$(CURDIR)/bin" -var="sample_urls=nomad_metrics:http://192.168.10.11:4646/v1/metrics" demo/jobs/holodeck.nomad.hcl
+job: nomad job-policy
+	nomad job run \
+	  -var="nomad_addr=http://$(MY_IP):4646" \
+	  -var="sample_urls=nomad_metrics:http://$(MY_IP):4646/v1/metrics" \
+	  demo/jobs/holodeck.nomad.hcl
 
 stop:
-	nomad job stop -purge holodeck
+	nomad job stop holodeck
 
 clean:
 	$(MAKE) stop || true
