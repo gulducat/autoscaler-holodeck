@@ -1,6 +1,5 @@
 variable "nomad_addr" {
-  default = "http://192.168.10.11:4646"
-  #default = "${NOMAD_UNIX_ADDR}"
+  #default = "${NOMAD_UNIX_ADDR}" # TODO: make this work everywhere...
 }
 
 //sample_urls format is '<metric_type>:<url>:<metric_type>:<url>'."
@@ -41,7 +40,6 @@ job "holodeck" {
         cgroupns   = "host"
       }
       env {
-        #NOMAD_ADDR          = "http://192.168.10.11:4646"
         NODESIM_GROUPS_ADDR = ":${NOMAD_PORT_nodesim}"
       }
       service {

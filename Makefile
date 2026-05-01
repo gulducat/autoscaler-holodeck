@@ -64,7 +64,10 @@ env:
 	@echo export NOMAD_ADDR="$(NOMAD_ADDR)"
 	@echo export NOMAD_TOKEN="$(NOMAD_TOKEN)"
 
-nomad:
+sudo-nomad:
+	sudo nomad version
+
+nomad: sudo-nomad
 	sudo nomad agent \
 	  -config ./demo/nomad.hcl \
 	  -data-dir $(PWD)/.nomad-data
@@ -91,8 +94,8 @@ job-policy: acl-bootstrap nomad-status
 
 job: job-policy
 	nomad job run \
-	  -var="nomad_addr=http://$(NOMAD_ADDR)" \
-	  -var="sample_urls=nomad_metrics:http://$(NOMAD_ADDR)/v1/metrics" \
+	  -var="nomad_addr=$(NOMAD_ADDR)" \
+	  -var="sample_urls=nomad_metrics:$(NOMAD_ADDR)/v1/metrics" \
 	  demo/jobs/holodeck.nomad.hcl
 
 stop:
