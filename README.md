@@ -37,22 +37,30 @@ eval $(make env) # NOMAD_ADDR and NOMAD_TOKEN
 nomad ui -authenticate
 ```
 
-#### Autoscaler
-
-Watch autoscaler logs:
-
-```
-nomad autoscaler logs -f -task autoscaler -job holodeck
-```
-
 #### Holodeck and Observer web UIs
 
 Custom UIs for setting metrics and observing events.
 
+The `ui` make target should output URLs for the observer and holodeck, e.g.:
+
 ```
-for s in observer holodeck; do
-  echo "$s: http://$(nomad service info -t '{{range .}}{{.Address}}:{{.Port}}{{end}}' "$s")"
-done
+$ make ui
+observer: nomad service info observer
+ * http://10.156.19.120:9090
+
+holodeck: nomad service info holodeck
+ * http://10.156.19.120:9091
+```
+
+#### Logs
+
+Convenience targets tail nomad logs for different services:
+
+```
+make logs-observer
+make logs-holodeck
+make logs-nodesim
+make logs-autoscaler
 ```
 
 #### Set a metric

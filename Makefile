@@ -78,7 +78,7 @@ nomad-status:
 acl-bootstrap:  
 acl-bootstrap:
 	@if nomad node status 2>&1 | grep -q 403 ; then \
-	  echo "${NOMAD_TOKEN}" | nomad acl bootstrap - ;\
+	  echo "$(NOMAD_TOKEN)" | nomad acl bootstrap - ;\
 	fi
 
 autoscaler: nomad-status
@@ -97,6 +97,23 @@ job: job-policy
 	  -var="nomad_addr=$(NOMAD_ADDR)" \
 	  -var="sample_urls=nomad_metrics:$(NOMAD_ADDR)/v1/metrics" \
 	  demo/jobs/holodeck.nomad.hcl
+
+# Visibility
+
+.PHONY: ui
+ui: url-observer url-holodeck
+
+url-observer:
+url-holodeck:
+url-%:
+	@echo -e "$*: nomad service info $*\n$(shell nomad service info -t '{{range .}} * http://{{.Address}}:{{.Port}}\n{{end}}' $*)"
+
+logs-observer:
+logs-holodeck:
+logs-nodesim:
+logs-autoscaler:
+logs-%:
+	nomad logs -f -task $* -job holodeck
 
 stop:
 	nomad job stop holodeck
